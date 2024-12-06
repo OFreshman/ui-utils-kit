@@ -1,16 +1,16 @@
 {
-  "name": "package-placeholder",
+  "name": "ui-utils-kit",
   "type": "module",
   "version": "0.0.0",
-  "description": "__description__",
+  "description": "ui-utils-kit 是一个高效的偏业务前端工具函数库",
   "author": "xiaohe0601 <xiaohe0601@outlook.com>",
   "license": "MIT",
-  "homepage": "https://github.com/xiaohe0601/package-placeholder#readme",
+  "homepage": "https://github.com/xiaohe0601/ui-utils-kit#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xiaohe0601/package-placeholder.git"
+    "url": "git+https://github.com/xiaohe0601/ui-utils-kit.git"
   },
-  "bugs": "https://github.com/xiaohe0601/package-placeholder/issues",
+  "bugs": "https://github.com/xiaohe0601/ui-utils-kit/issues",
   "keywords": [],
   "sideEffects": false,
   "exports": {
