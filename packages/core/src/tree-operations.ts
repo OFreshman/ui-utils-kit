@@ -62,7 +62,7 @@ export function treeToArr(data: TreeNode[]): TreeNode[] {
    * @param {TreeNode[]} tree - 当前树的节点数组
    * @param {number | null} pid - 当前节点的父节点 ID
    */
-  function deep(tree: TreeNode[], pid: number | null = null): void {
+  function deep(tree: TreeNode[], pid: string | number | null = null): void {
     for (const item of tree) {
       const { id, name, children = [] } = item;
 
@@ -99,10 +99,10 @@ export function treeToArr(data: TreeNode[]): TreeNode[] {
  * @returns {TreeNode[]} 返回更新后的树结构数组。
  */
 export function updateTreeCheckStatus(tree: TreeNode[], selectedNodes: TreeNode[]): TreeNode[] {
-  const nodeMap = new Map<number, TreeNode>();
+  const nodeMap = new Map<string | number, TreeNode>();
 
   // 创建节点映射，便于快速查找节点
-  function createNodeMap(nodes: TreeNode[], map: Map<number, TreeNode>): void {
+  function createNodeMap(nodes: TreeNode[], map: Map<string | number, TreeNode>): void {
     nodes.forEach((node) => {
       map.set(node.id, node);
       if (node.children && node.children.length > 0) {
@@ -169,8 +169,8 @@ export function updateTreeCheckStatus(tree: TreeNode[], selectedNodes: TreeNode[
  * @returns {TreeNode[]} 返回更新后的扁平数组格式的树结构。
  */
 export function updateTreeCheckStatusFlat(tree: TreeNode[], selectedNodes: TreeNode[]): TreeNode[] {
-  const idToNodeMap = new Map<number, TreeNode>();
-  const pidToChildrenMap = new Map<number, TreeNode[]>();
+  const idToNodeMap = new Map<string | number, TreeNode>();
+  const pidToChildrenMap = new Map<string | number | null, TreeNode[]>();
 
   // 创建节点映射和父节点到子节点的映射
   tree.forEach((node) => {
