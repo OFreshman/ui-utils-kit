@@ -19,9 +19,9 @@
 
 <!-- Badges -->
 
-[github-stars-src]: https://img.shields.io/github/stars/xiaohe0601/ui-utils-kit?style=flat&colorA=080f12&colorB=1fa669&logo=GitHub
+[github-stars-src]: https://img.shields.io/github/stars/OFreshman/ui-utils-kit?style=flat&colorA=080f12&colorB=1fa669&logo=GitHub
 
-[github-stars-href]: https://github.com/xiaohe0601/ui-utils-kit
+[github-stars-href]: https://github.com/OFreshman/ui-utils-kit
 
 [npm-version-src]: https://img.shields.io/npm/v/ui-utils-kit?style=flat&colorA=080f12&colorB=1fa669
 
@@ -39,6 +39,6 @@
 
 [jsdocs-href]: https://www.jsdocs.io/package/ui-utils-kit
 
-[license-src]: https://img.shields.io/github/license/xiaohe0601/ui-utils-kit.svg?style=flat&colorA=080f12&colorB=1fa669
+[license-src]: https://img.shields.io/github/license/OFreshman/ui-utils-kit.svg?style=flat&colorA=080f12&colorB=1fa669
 
-[license-href]: https://github.com/xiaohe0601/ui-utils-kit/blob/main/LICENSE
+[license-href]: https://github.com/OFreshman/ui-utils-kit/blob/main/LICENSE
