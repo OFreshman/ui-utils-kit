@@ -1,16 +1,16 @@
 {
   "name": "ui-utils-kit",
   "type": "module",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "ui-utils-kit 是一个高效的偏业务前端工具函数库",
-  "author": "xiaohe0601 <xiaohe0601@outlook.com>",
+  "author": "Ethan Yin",
   "license": "MIT",
-  "homepage": "https://github.com/xiaohe0601/ui-utils-kit#readme",
+  "homepage": "https://github.com/OFreshman/ui-utils-kit#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xiaohe0601/ui-utils-kit.git"
+    "url": "git+https://github.com/OFreshman/ui-utils-kit.git"
   },
-  "bugs": "https://github.com/xiaohe0601/ui-utils-kit/issues",
+  "bugs": "https://github.com/OFreshman/ui-utils-kit/issues",
   "keywords": [],
   "sideEffects": false,
   "exports": {

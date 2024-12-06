@@ -1,7 +1,7 @@
 {
   "name": "@ui-utils-kit/playground",
   "type": "module",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "private": true,
   "scripts": {
     "dev": "vite",
