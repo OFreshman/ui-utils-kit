@@ -1,7 +1,7 @@
 {
   "name": "ui-utils-kit",
   "type": "module",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "ui-utils-kit 是一个高效的偏业务前端工具函数库",
   "author": "Ethan Yin",
   "license": "MIT",
@@ -11,7 +11,12 @@
     "url": "git+https://github.com/OFreshman/ui-utils-kit.git"
   },
   "bugs": "https://github.com/OFreshman/ui-utils-kit/issues",
-  "keywords": ["js", "web", "tool", "utils"],
+  "keywords": [
+    "js",
+    "web",
+    "tool",
+    "utils"
+  ],
   "sideEffects": false,
   "exports": {
     ".": {
@@ -37,5 +42,16 @@
   ],
   "scripts": {
     "build": "unbuild"
+  },
+  "peerDependencies": {
+    "html2canvas-pro": "^1.5.8"
+  },
+  "peerDependenciesMeta": {
+    "html2canvas-pro": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "html2canvas-pro": "^1.5.8"
   }
 }
