@@ -1,0 +1,84 @@
+import html2canvas from "html2canvas-pro";
+import type { CaptureResult, OutputOptions } from "./types/business-type.ts";
+
+/**
+ * =====================
+ * ==业务相关的工具类函数==
+ * =====================
+ */
+
+
+/**
+ * 将 DOM 元素转换为图片（canvas），并支持自动下载或返回 Blob 格式数据。
+ *
+ * @param element - 需要捕捉的 DOM 元素。
+ * @param canvasConfig - html2canvas 的配置项，例如 scale、backgroundColor 等。
+ * @param outputOptions - 输出选项。
+ * @returns 返回 Promise，包含 { canvas, dataUrl, blob } 对象。
+ */
+export async function captureElementAsImage(
+  element: HTMLElement | null,
+  canvasConfig: Record<string, any> = {},
+  outputOptions: OutputOptions = { download: true, downloadName: "下载图片", blob: false }
+): Promise<CaptureResult | null> {
+  if (!element) {
+    console.warn("未提供需要捕捉的 DOM 元素");
+    return null;
+  }
+
+  // 默认的 html2canvas 配置，确保图片清晰且处理跨域问题
+  const defaultCanvasConfig: Record<string, any> = {
+    scale: 2, // 提高清晰度
+    backgroundColor: "#ffffff", // 防止生成的图片背景透明
+    useCORS: true, // 允许跨域图片
+    allowTaint: true // 允许污染 canvas
+  };
+
+  // 合并默认输出选项和用户传入的选项
+  const defaultOutputOptions: OutputOptions = {
+    download: true,
+    downloadName: "下载图片",
+    blob: false,
+    ...outputOptions
+  };
+
+  // 合并默认配置和用户传入的配置
+  const finalCanvasConfig = { ...defaultCanvasConfig, ...canvasConfig };
+
+  let canvas: HTMLCanvasElement | null = null;
+  let dataUrl: string | null = null;
+  let blobResult: Blob | null = null;
+
+  try {
+    // 利用 html2canvas 将 DOM 元素渲染成 canvas
+    canvas = await html2canvas(element, finalCanvasConfig);
+
+    // 如果需要下载，则生成 data URL 并触发下载
+    if (defaultOutputOptions.download) {
+      dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `${defaultOutputOptions.downloadName}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // 如果需要 blob 格式，则封装 canvas.toBlob 为 Promise，并等待转换完成
+    if (defaultOutputOptions.blob) {
+      blobResult = await new Promise<Blob>((resolve, reject) => {
+        canvas!.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error("canvas 转 Blob 失败！"));
+          }
+        }, "image/png", 1.0);
+      });
+    }
+  } catch (error) {
+    console.warn("捕捉元素生成图片时出错：", error);
+  }
+
+  return { canvas, dataUrl, blob: blobResult };
+}

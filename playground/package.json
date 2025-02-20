@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "ui-utils-kit": "workspace:^",
     "vue": "^3.5.13"
   },
   "devDependencies": {

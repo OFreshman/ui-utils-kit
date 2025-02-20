@@ -1,6 +1,11 @@
 import type { TreeNode } from "./types/tree-operations-type";
 import { CheckStatus } from "./types/tree-operations-type";
 
+/**
+ * ========================
+ * ==树级数据操作的工具类函数==
+ * ========================
+ */
 
 /**
  * 构建树形结构
