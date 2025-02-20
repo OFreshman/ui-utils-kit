@@ -1,4 +1,5 @@
 import html2canvas from "html2canvas-pro";
+import type { Options as Html2canvasOptions } from "html2canvas-pro";
 import type { CaptureResult, OutputOptions } from "./types/business-type.ts";
 
 /**
@@ -18,16 +19,15 @@ import type { CaptureResult, OutputOptions } from "./types/business-type.ts";
  */
 export async function captureElementAsImage(
   element: HTMLElement | null,
-  canvasConfig: Record<string, any> = {},
+  canvasConfig: Partial<Html2canvasOptions> = {},
   outputOptions: OutputOptions = { download: true, downloadName: "下载图片", blob: false }
-): Promise<CaptureResult | null> {
+): Promise<CaptureResult> {
   if (!element) {
-    console.warn("未提供需要捕捉的 DOM 元素");
-    return null;
+    throw new Error("captureElementAsImage element required");
   }
 
   // 默认的 html2canvas 配置，确保图片清晰且处理跨域问题
-  const defaultCanvasConfig: Record<string, any> = {
+  const defaultCanvasConfig: Partial<Html2canvasOptions> = {
     scale: 2, // 提高清晰度
     backgroundColor: "#ffffff", // 防止生成的图片背景透明
     useCORS: true, // 允许跨域图片
@@ -49,35 +49,31 @@ export async function captureElementAsImage(
   let dataUrl: string | null = null;
   let blobResult: Blob | null = null;
 
-  try {
-    // 利用 html2canvas 将 DOM 元素渲染成 canvas
-    canvas = await html2canvas(element, finalCanvasConfig);
+  // 利用 html2canvas 将 DOM 元素渲染成 canvas
+  canvas = await html2canvas(element, finalCanvasConfig);
 
-    // 如果需要下载，则生成 data URL 并触发下载
-    if (defaultOutputOptions.download) {
-      dataUrl = canvas.toDataURL("image/png");
-      const link = document.createElement("a");
-      link.href = dataUrl;
-      link.download = `${defaultOutputOptions.downloadName}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
+  // 如果需要下载，则生成 data URL 并触发下载
+  if (defaultOutputOptions.download) {
+    dataUrl = canvas.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = `${defaultOutputOptions.downloadName}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
 
-    // 如果需要 blob 格式，则封装 canvas.toBlob 为 Promise，并等待转换完成
-    if (defaultOutputOptions.blob) {
-      blobResult = await new Promise<Blob>((resolve, reject) => {
-        canvas!.toBlob((blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error("canvas 转 Blob 失败！"));
-          }
-        }, "image/png", 1.0);
-      });
-    }
-  } catch (error) {
-    console.warn("捕捉元素生成图片时出错：", error);
+  // 如果需要 blob 格式，则封装 canvas.toBlob 为 Promise，并等待转换完成
+  if (defaultOutputOptions.blob) {
+    blobResult = await new Promise<Blob>((resolve, reject) => {
+      canvas!.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error("canvas 转 Blob 失败！"));
+        }
+      }, "image/png", 1.0);
+    });
   }
 
   return { canvas, dataUrl, blob: blobResult };
