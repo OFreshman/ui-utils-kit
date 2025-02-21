@@ -29,9 +29,10 @@ export async function captureElementAsImage(
   // 默认的 html2canvas 配置，确保图片清晰且处理跨域问题
   const defaultCanvasConfig: Partial<Html2canvasOptions> = {
     scale: 2, // 提高清晰度
+    proxy: "",
     backgroundColor: "#ffffff", // 防止生成的图片背景透明
-    useCORS: true, // 允许跨域图片
-    allowTaint: true // 允许污染 canvas
+    useCORS: false, // 允许跨域图片
+    allowTaint: false // 允许污染 canvas
   };
 
   // 合并默认输出选项和用户传入的选项
@@ -45,11 +46,13 @@ export async function captureElementAsImage(
   // 合并默认配置和用户传入的配置
   const finalCanvasConfig = { ...defaultCanvasConfig, ...canvasConfig };
 
+  console.log("config: ", finalCanvasConfig);
   let canvas: HTMLCanvasElement | null = null;
   let dataUrl: string | null = null;
   let blobResult: Blob | null = null;
 
   // 利用 html2canvas 将 DOM 元素渲染成 canvas
+  // debugger
   canvas = await html2canvas(element, finalCanvasConfig);
 
   // 如果需要下载，则生成 data URL 并触发下载
