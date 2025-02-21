@@ -6,6 +6,21 @@
     <div class="print">
       <ul ref="printEl">
         <li v-for="i in 20" :key="i">{{ i }}</li>
+        <li>
+          <img
+            width="100%"
+            height="100%"
+            style="object-fit: cover"
+            src="https://oss.xiaohe.ink/images/uni-echarts.png"
+            alt=""></li>
+        <li>
+          <img
+            width="100%"
+            height="100%"
+            style="object-fit: cover"
+            src="https://fuss10.elemecdn.com/e/5d/4a731a90594a4af544c0c25941171jpeg.jpeg"
+            alt="">
+        </li>
       </ul>
     </div>
     <hr />
@@ -19,7 +34,10 @@ import { ref } from "vue";
 const printEl = ref<HTMLElement | null>(null);
 
 async function onPrint() {
-  const res = await captureElementAsImage(printEl.value);
+  const res = await captureElementAsImage(printEl.value, {
+    proxy: "https://h2c-proxy.netlify.app/api/",
+    useCORS: false
+  });
   console.log("res: ", res);
 }
 </script>
