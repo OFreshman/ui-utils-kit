@@ -5,6 +5,10 @@
   "private": true,
   "packageManager": "pnpm@10.4.1",
   "description": "ui-utils-kit 是一个高效的偏业务前端工具函数库",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/OFreshman/ui-utils-kit"
+  },
   "scripts": {
     "prepare": "simple-git-hooks",
     "play": "nr -C playground dev",
