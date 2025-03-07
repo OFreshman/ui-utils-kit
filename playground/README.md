@@ -135,7 +135,7 @@ const result = buildTree(nodes);
 **`captureElementAsImage`** 将 DOM 元素转换为图片（canvas），支持自动下载或返回 Blob 格式数据。
 > **⚠️ 注意**
 >
-> 如果截图元素中存在图片且图片源未设置允许跨域，那么需要后端提供图片转译服务（代码可参考https://github.com/OFreshman/html2canvas-proxy）
+> 如果截图元素中存在图片且图片源未设置允许跨域，那么需要后端提供图片转译服务（ 代码可参考https://github.com/OFreshman/html2canvas-proxy ）
 >
 >虽然个人提供了 `https://h2c-proxy.netlify.app/api/` 服务（使用的是nitro + netlify)去测试处理跨域图片，但流量有限，谨慎使用！！！另外**配置了proxy
 > 必须设置`useCORS：false`**，这两个属性时互斥的。
