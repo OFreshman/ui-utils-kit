@@ -16,12 +16,10 @@
     "release": "bumpp -r",
     "lint": "eslint --cache .",
     "lint:fix": "nr lint --fix",
-    "lint:type": "tsc --noEmit",
-    "test": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "stylelint:fix": "stylelint **/*.{css,scss,html,vue} --fix"
   },
   "dependencies": {
+    "husky": "^9.1.7",
     "ui-utils-kit": "^1.1.0"
   },
   "devDependencies": {
@@ -39,10 +37,7 @@
     "vite": "^5.4.11",
     "vitest": "^2.1.5"
   },
-  "simple-git-hooks": {
-    "pre-commit": "npx lint-staged"
-  },
   "lint-staged": {
-    "*": "eslint --fix"
+    "*.{js,ts,tsx,vue}": "eslint --fix"
   }
 }
