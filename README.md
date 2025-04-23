@@ -250,8 +250,7 @@ console.log(desensitize('110105199001011234', 'idcard')); // 输出：110105****
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import Mutex from '@/utils/Mutex'   // 假设 Mutex 存放在 utils 目录
+import Mutex from 'ui-utils-kit'   // 假设 Mutex 存放在 utils 目录
 
 // 状态变量，无需在 setup 中 return，自动暴露给模板使用
 const isSubmitting = ref(false)

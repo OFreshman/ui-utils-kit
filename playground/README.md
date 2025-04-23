@@ -11,6 +11,12 @@ ui-utils-kit 是一个高效的偏业务前端工具函数库。
 [![License](https://img.shields.io/github/license/OFreshman/ui-utils-kit.svg?style=flat&colorA=080f12&colorB=1fa669)](https://github.com/OFreshman/ui-utils-kit/blob/main/LICENSE)
 
 ---
+## 📖changlogs
+- 2023-10-01
+  - 新增 `tree` 模块，提供树形数据操作的工具函数。
+  - 新增 `business` 模块，提供 DOM 转图片的工具函数。
+  - 新增 `common` 模块，提供一些常用的业务工具函数。
+  - 完善文档说明。
 
 ## 📌 简介
 
@@ -22,6 +28,8 @@ ui-utils-kit 是一个高效的偏业务前端工具函数库。
 - **海报制作**
   将 DOM 元素转换为图片（canvas），支持自动下载或返回 Blob 格式数据。
   > 针对跨域图片问题，内置 `html2canvas` proxy 解决方案。
+- **业务工具类函数**
+  提供一些常用的业务工具函数，如 JSON 安全解析、敏感信息脱敏等。
 
 ---
 
@@ -45,12 +53,14 @@ ui-utils-kit 的工具函数分为三大类：`tree`、`business`、`common`，�
 **方式一：**
 ```javascript
 import { tree } from "ui-utils-kit";
+
 const result = tree.buildTree(nodes);
 ```
 
 **方式二：**
 ```javascript
 import { buildTree } from "ui-utils-kit";
+
 const result = buildTree(nodes);
 ```
 
@@ -83,6 +93,9 @@ const result = buildTree(nodes);
 
 **`tree.treeToArr`** 将树形数据转换为扁平化数组，便于遍历与处理。
 
+- **参数：**
+  - `tree` (`TreeNode`)：包含 `id` 与 `name`、`children`的树形结构数据。
+  - `node` (`TreeNode`)：包含 `id` 与 `pid` 的节点数据。
 - **示例：**
   ```typescript
   import { treeToArr } from 'ui-utils-kit';
@@ -96,6 +109,8 @@ const result = buildTree(nodes);
 
 **`tree.updateTreeCheckStatus`** 更新树中节点的选中状态（含子节点与父节点联动）。
 
+- **参数：**
+  - `tree` (`TreeNode`)：包含 `id` 与 `name`、`children`的树形结构数据。
 - **示例：**
   ```typescript
   import { updateTreeCheckStatus } from 'ui-utils-kit';
@@ -174,20 +189,8 @@ const result = buildTree(nodes);
 
 ### 1. safeJsonParse<T>(jsonString: string, defaultValue: T): [Error \| null, T]
 
-**功能描述：**
-安全地解析 JSON 字符串，如果解析出错则返回默认值和错误对象。
+**功能描述：** 安全地解析 JSON 字符串，如果解析出错则返回默认值和错误对象。
 
-```typescript
-export function safeJsonParse<T>(jsonString: string, defaultValue: T): [Error | null, T] {
-  try {
-    const parsed = JSON.parse(jsonString) as T;
-    return [null, parsed];
-  } catch (error) {
-    console.error("JSON 解析错误:", error);
-    return [error instanceof Error ? error : new Error(String(error)), defaultValue];
-  }
-}
-```
 **参数**
 - `jsonString: string` — 要解析的 JSON 格式字符串。
 
@@ -198,6 +201,8 @@ export function safeJsonParse<T>(jsonString: string, defaultValue: T): [Error | 
 
 - 示例
 ```typescript
+import { safeJsonParse } from 'ui-utils-kit';
+
 const [err, data] = safeJsonParse('{"foo": 42}', { foo: 0 });
 if (err) {
   // 处理解析错误
@@ -206,54 +211,71 @@ if (err) {
 }
 ```
 ### 2. desensitize(value: string, type: "mobile" | "idcard"): string
-功能描述：对敏感信息（手机号或身份证号）进行脱敏处理，隐藏中间部分。
+**功能描述**：对敏感信息（手机号或身份证号）进行脱敏处理，隐藏中间部分。
 
 **参数**
 - `value: string` — 原始字符串，如手机号或身份证号。
-
 - `type: "mobile" \| "idcard"` — 数据类型，"mobile" 脱敏手机号，"idcard" 脱敏身份证号。
 
 **返回值**
 string — 脱敏后字符串，如果输入非字符串则返回空字符串。
+
 - 示例
 ```typescript
+import { desensitize } from 'ui-utils-kit';
+
 console.log(desensitize('13812345678', 'mobile'));  // 输出：138****5678
 console.log(desensitize('110105199001011234', 'idcard')); // 输出：110105********1234
 ```
 
 ### 3. Mutex 类
 功能描述：模拟互斥锁机制，用于控制异步操作对共享资源的访问，确保同一时刻只有一个操作进入临界区。
+> ##### 以下是一些应用场景
+> - 防止按钮重复点击：避免用户多次点击同一按钮导致重复网络请求或状态混乱
+> - 强制 API 调用顺序：确保一组异步接口按预期顺序依次执行，防止乱序带来的逻辑错误
+> - 多标签页 localStorage 访问：在多个浏览器标签或窗口同时操作同一 localStorage 时，避免数据竞争和丢失
+> - 分片上传（Chunked Upload）：在大文件上传时，按顺序上传每个分片，确保断点续传或失败重试时不会错乱
+> - Web Worker 任务同步：在主线程与 Worker 线程之间同步访问共享内存（如 SharedArrayBuffer ）时，保证原子性
+
+
 - 示例
 
 ```typescript
-import Mutex from './Mutex';
+<template>
+  <view>
+    <button @click="onSubmit" :disabled="isSubmitting">
+      {{ isSubmitting ? '提交中...' : '提交' }}
+    </button>
+  </view>
+</template>
 
-const mutex = new Mutex();
+<script setup lang="ts">
+import Mutex from 'ui-utils-kit'   // 假设 Mutex 存放在 utils 目录
 
-// 初始状态
-console.log('初始状态', mutex.isLocked(), mutex.queueLength()); // 初始状态 false 0
+// 状态变量，无需在 setup 中 return，自动暴露给模板使用
+const isSubmitting = ref(false)
+// 创建一个互斥锁实例
+const submitMutex = new Mutex()
 
-// 获取锁
-await mutex.lock();
-console.log('获取锁后', mutex.isLocked(), mutex.queueLength()); // 获取锁后 true 0
+// 点击处理函数
+const onSubmit = async () => {
+  // 获取锁：若已有操作在进行，则挂起后续调用
+  await submitMutex.lock()
+  try {
+    isSubmitting.value = true
+    // 模拟网络请求
+    await new Promise<void>(resolve => setTimeout(resolve, 1500))
+    uni.showToast({ title: '提交成功' })
+  } catch (err: any) {
+    uni.showModal({ title: '错误', content: err.message })
+  } finally {
+    isSubmitting.value = false
+    // 释放锁，允许下一次点击
+    submitMutex.unlock()
+  }
+}
+</script>
 
-// 第二次请求锁，不会立即获取，加入队列
-const pending = mutex.lock().then(() => {
-  console.log('第二次获取锁', mutex.isLocked(), mutex.queueLength());
-});
-console.log('请求队列长度', mutex.queueLength()); // 请求队列长度 1
-
-// 执行临界区代码
-// ...
-
-// 释放锁，自动唤醒队列中的下一个请求
-mutex.unlock();
-console.log('释放锁后', mutex.isLocked(), mutex.queueLength()); // 释放锁后 true 0
-
-await pending; // 等待第二个请求获取锁
-// 最后释放锁
-mutex.unlock();
-console.log('全部完成', mutex.isLocked(), mutex.queueLength()); // 全部完成 false 0
 ```
 
 ---
