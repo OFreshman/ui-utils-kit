@@ -11,6 +11,12 @@ ui-utils-kit 是一个高效的偏业务前端工具函数库。
 [![License](https://img.shields.io/github/license/OFreshman/ui-utils-kit.svg?style=flat&colorA=080f12&colorB=1fa669)](https://github.com/OFreshman/ui-utils-kit/blob/main/LICENSE)
 
 ---
+## 📖changlogs
+- 2023-10-01
+  - 新增 `tree` 模块，提供树形数据操作的工具函数。
+  - 新增 `business` 模块，提供 DOM 转图片的工具函数。
+  - 新增 `common` 模块，提供一些常用的业务工具函数。
+  - 完善文档说明。
 
 ## 📌 简介
 
