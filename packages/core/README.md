@@ -172,7 +172,89 @@ const result = buildTree(nodes);
 
 ## 🎨 公共通用函数 (common)
 
-> 当前暂无公共通用函数，后续版本将持续更新。
+### 1. safeJsonParse<T>(jsonString: string, defaultValue: T): [Error \| null, T]
+
+**功能描述：**
+安全地解析 JSON 字符串，如果解析出错则返回默认值和错误对象。
+
+```typescript
+export function safeJsonParse<T>(jsonString: string, defaultValue: T): [Error | null, T] {
+  try {
+    const parsed = JSON.parse(jsonString) as T;
+    return [null, parsed];
+  } catch (error) {
+    console.error("JSON 解析错误:", error);
+    return [error instanceof Error ? error : new Error(String(error)), defaultValue];
+  }
+}
+```
+**参数**
+- `jsonString: string` — 要解析的 JSON 格式字符串。
+
+- `defaultValue: T` — 当解析失败时返回的默认值，类型与期待的解析结果相同。
+
+**返回值**
+`[Error | null, T]` — 一个元组：
+
+- 示例
+```typescript
+const [err, data] = safeJsonParse('{"foo": 42}', { foo: 0 });
+if (err) {
+  // 处理解析错误
+} else {
+  console.log(data.foo); // 42
+}
+```
+### 2. desensitize(value: string, type: "mobile" | "idcard"): string
+功能描述：对敏感信息（手机号或身份证号）进行脱敏处理，隐藏中间部分。
+
+**参数**
+- `value: string` — 原始字符串，如手机号或身份证号。
+
+- `type: "mobile" \| "idcard"` — 数据类型，"mobile" 脱敏手机号，"idcard" 脱敏身份证号。
+
+**返回值**
+string — 脱敏后字符串，如果输入非字符串则返回空字符串。
+- 示例
+```typescript
+console.log(desensitize('13812345678', 'mobile'));  // 输出：138****5678
+console.log(desensitize('110105199001011234', 'idcard')); // 输出：110105********1234
+```
+
+### 3. Mutex 类
+功能描述：模拟互斥锁机制，用于控制异步操作对共享资源的访问，确保同一时刻只有一个操作进入临界区。
+- 示例
+
+```typescript
+import Mutex from './Mutex';
+
+const mutex = new Mutex();
+
+// 初始状态
+console.log('初始状态', mutex.isLocked(), mutex.queueLength()); // 初始状态 false 0
+
+// 获取锁
+await mutex.lock();
+console.log('获取锁后', mutex.isLocked(), mutex.queueLength()); // 获取锁后 true 0
+
+// 第二次请求锁，不会立即获取，加入队列
+const pending = mutex.lock().then(() => {
+  console.log('第二次获取锁', mutex.isLocked(), mutex.queueLength());
+});
+console.log('请求队列长度', mutex.queueLength()); // 请求队列长度 1
+
+// 执行临界区代码
+// ...
+
+// 释放锁，自动唤醒队列中的下一个请求
+mutex.unlock();
+console.log('释放锁后', mutex.isLocked(), mutex.queueLength()); // 释放锁后 true 0
+
+await pending; // 等待第二个请求获取锁
+// 最后释放锁
+mutex.unlock();
+console.log('全部完成', mutex.isLocked(), mutex.queueLength()); // 全部完成 false 0
+```
 
 ---
 
