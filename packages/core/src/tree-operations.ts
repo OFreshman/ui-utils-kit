@@ -1,5 +1,4 @@
-import type { TreeNode } from "./types/tree-operations-type";
-import { CheckStatus } from "./types/tree-operations-type";
+import type { CheckStatus, TreeNode } from "./types/tree-operations-type";
 
 /**
  * ========================
