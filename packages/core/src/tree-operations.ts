@@ -1,4 +1,5 @@
-import type { CheckStatus, TreeNode } from "./types/tree-operations-type";
+import type { CheckStatusType, TreeNode } from "./types/tree-operations-type";
+import { CheckStatus } from "./types/tree-operations-type";
 
 /**
  * ========================
@@ -116,7 +117,7 @@ export function updateTreeCheckStatus(tree: TreeNode[], selectedNodes: TreeNode[
   }
 
   // 更新节点及其子节点的选中状态
-  function updateChildrenCheck(node: TreeNode, checkStatus: CheckStatus): void {
+  function updateChildrenCheck(node: TreeNode, checkStatus: CheckStatusType): void {
     node.check = checkStatus;
     if (node.children && node.children.length > 0) {
       node.children.forEach((child) => updateChildrenCheck(child, checkStatus));
@@ -186,7 +187,7 @@ export function updateTreeCheckStatusFlat(tree: TreeNode[], selectedNodes: TreeN
   });
 
   // 设置节点选中状态
-  function setCheckStatus(node: TreeNode, status: CheckStatus): void {
+  function setCheckStatus(node: TreeNode, status: CheckStatusType): void {
     node.check = status;
     if (pidToChildrenMap.has(node.id)) {
       pidToChildrenMap.get(node.id)!.forEach((child) => setCheckStatus(child, status));
