@@ -1,3 +1,5 @@
+import type { SelfCorrectingClock, SelfCorrectingCountdown } from "./types/common-type";
+
 /**
  * =====================
  * =======公共函数=======
@@ -21,6 +23,7 @@ export function safeJsonParse<T>(jsonString: string, defaultValue: T): [Error | 
     return [error instanceof Error ? error : new Error(String(error)), defaultValue];
   }
 }
+
 
 /**
  * 对敏感信息进行脱敏处理
@@ -54,10 +57,11 @@ export function desensitize(value: string, type: "mobile" | "idcard"): string {
   }
 }
 
+
 /**
  * 模拟互斥锁（Mutex）机制，用于控制异步操作对共享资源的访问
  */
-export default class Mutex {
+export class Mutex {
 
   /**
    * 锁的状态：true 表示已锁定，false 表示未锁定
@@ -116,4 +120,65 @@ export default class Mutex {
     return this.#queue.length;
   }
 
+}
+
+/**
+ * 创建零漂移的自校正实时时钟
+ * @param interval 更新间隔（毫秒），默认 1000
+ */
+export function createSelfCorrectingClock(
+  interval: number = 1000
+): SelfCorrectingClock {
+  let currentTime: number = Date.now();
+  let expected: number = Date.now() + interval;
+  let timerId: ReturnType<typeof setTimeout>;
+
+  const step = (): void => {
+    const drift: number = Date.now() - expected; // 计算漂移 :contentReference[oaicite:3]{index=3}
+    currentTime = Date.now();
+    expected += interval;
+    // 下次延迟 = 理想间隔 - 本次漂移，保证校正 :contentReference[oaicite:4]{index=4}
+    const timeout = Math.max(0, interval - drift);
+    timerId = setTimeout(step, timeout);
+  };
+
+  timerId = setTimeout(step, interval); // 初始启动 :contentReference[oaicite:5]{index=5}
+  return {
+    getCurrentTime: () => currentTime,
+    stop: () => clearTimeout(timerId) // 内部清除，无须外部管理 :contentReference[oaicite:6]{index=6}
+  };
+}
+
+
+/**
+ * 创建零漂移的自校正倒计时器
+ * @param targetTimestamp 目标时间戳（毫秒）
+ * @param interval 更新间隔（毫秒），默认值为 1000
+ * @returns 自校正倒计时管理器实例，包含获取剩余时间和停止定时器的方法
+ */
+export function createSelfCorrectingCountdown(
+  targetTimestamp: number,
+  interval: number = 1000
+): SelfCorrectingCountdown {
+  let remaining: number = Math.max(targetTimestamp - Date.now(), 0);
+  let expected: number = Date.now() + interval;
+  let timerId: ReturnType<typeof setTimeout>;
+
+  const step = (): void => {
+    const drift: number = Date.now() - expected;
+    remaining = Math.max(targetTimestamp - Date.now(), 0);
+    if (remaining === 0) {
+      return;
+    }
+    expected += interval;
+    const timeout = Math.max(0, interval - drift);
+    timerId = setTimeout(step, timeout);
+  };
+
+  timerId = setTimeout(step, interval);
+
+  return {
+    getRemainingTime: (): number => remaining,
+    stop: (): void => clearTimeout(timerId)
+  };
 }

@@ -1,9 +1,11 @@
 // 节点选择状态枚举
-export enum CheckStatus {
-  Unchecked = "0", // 未选中
-  HalfChecked = "1", // 半选中
-  Checked = "2" // 选中
-}
+export const CheckStatusMap = {
+  Unchecked: "0",
+  HalfChecked: "1",
+  Checked: "2"
+} as const;
+
+export type CheckStatus = typeof CheckStatusMap[keyof typeof CheckStatusMap];
 
 // 树节点类型
 export interface TreeNode {
