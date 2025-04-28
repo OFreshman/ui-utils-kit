@@ -52,7 +52,7 @@ export async function captureElementAsImage(
   let blobResult: Blob | null = null;
 
   // 利用 html2canvas 将 DOM 元素渲染成 canvas
-  // debugger
+  // 考虑到 html-to-image 虽然渲染快（仅web就优先考虑），但是在 ios和android 兼容性较弱，这里使用 html2canvas 进行渲染
   canvas = await html2canvas(element, finalCanvasConfig);
 
   // 如果需要下载，则生成 data URL 并触发下载
