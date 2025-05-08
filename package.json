@@ -10,6 +10,10 @@
     "type": "git",
     "url": "https://github.com/OFreshman/ui-utils-kit"
   },
+  "bugs": {
+    "url": "https://github.com/OFreshman/ui-utils-kit/issues"
+  },
+  "author": "OFreshman",
   "scripts": {
     "prepare": "simple-git-hooks",
     "play": "nr -C playground dev",
