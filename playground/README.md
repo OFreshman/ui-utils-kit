@@ -11,7 +11,10 @@
 [![License](https://img.shields.io/github/license/OFreshman/ui-utils-kit.svg?style=flat&colorA=080f12&colorB=1fa669)](https://github.com/OFreshman/ui-utils-kit/blob/main/LICENSE)
 
 ---
-## 📖changelogs
+## 📝 changelogs
+### TodoList
+- `bussiness.captureElementAsImage` 支持 html-to-image 的 选择？
+---
 - 2024-12-06
   - 新增 `tree` 模块，提供树形数据操作的工具函数。
   - 新增 `business` 模块，提供 DOM 转图片的工具函数。
@@ -20,6 +23,9 @@
 - 2025-04-24
   - 新增 `common.createSelfCorrectingClock` 创建零漂移的自校正实时时钟。
   - 新增 `common.createSelfCorrectingCountdown` 创建零漂移的自校正倒计时器。
+  - 完善文档说明。
+- 2025-05-08
+  - 依赖集中在 `pnpm-workspace.yaml - catalogs` 统一管理。
   - 完善文档说明。
 
 ## 📌 简介
@@ -278,30 +284,30 @@ console.log(desensitize('110105199001011234', 'idcard')); // 输出：110105****
 </template>
 
 <script setup lang="ts">
-import { Mutex } from 'ui-utils-kit'
+  import { Mutex } from 'ui-utils-kit'
 
-// 状态变量，无需在 setup 中 return，自动暴露给模板使用
-const isSubmitting = ref(false)
-// 创建一个互斥锁实例
-const submitMutex = new Mutex()
+  // 状态变量，无需在 setup 中 return，自动暴露给模板使用
+  const isSubmitting = ref(false)
+  // 创建一个互斥锁实例
+  const submitMutex = new Mutex()
 
-// 点击处理函数
-const onSubmit = async () => {
-  // 获取锁：若已有操作在进行，则挂起后续调用
-  await submitMutex.lock()
-  try {
-    isSubmitting.value = true
-    // 模拟网络请求
-    await new Promise<void>(resolve => setTimeout(resolve, 1500))
-    uni.showToast({ title: '提交成功' })
-  } catch (err: any) {
-    uni.showModal({ title: '错误', content: err.message })
-  } finally {
-    isSubmitting.value = false
-    // 释放锁，允许下一次点击
-    submitMutex.unlock()
+  // 点击处理函数
+  const onSubmit = async () => {
+    // 获取锁：若已有操作在进行，则挂起后续调用
+    await submitMutex.lock()
+    try {
+      isSubmitting.value = true
+      // 模拟网络请求
+      await new Promise<void>(resolve => setTimeout(resolve, 1500))
+      uni.showToast({ title: '提交成功' })
+    } catch (err: any) {
+      uni.showModal({ title: '错误', content: err.message })
+    } finally {
+      isSubmitting.value = false
+      // 释放锁，允许下一次点击
+      submitMutex.unlock()
+    }
   }
-}
 </script>
 ```
 
