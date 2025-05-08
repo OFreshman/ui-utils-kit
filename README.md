@@ -24,6 +24,9 @@
   - 新增 `common.createSelfCorrectingClock` 创建零漂移的自校正实时时钟。
   - 新增 `common.createSelfCorrectingCountdown` 创建零漂移的自校正倒计时器。
   - 完善文档说明。
+- 2025-05-08
+  - 依赖集中在 `pnpm-workspace.yaml - catalogs` 统一管理。
+  - 完善文档说明。
 
 ## 📌 简介
 

@@ -1,6 +1,6 @@
 import html2canvas from "html2canvas-pro";
 import type { Options as Html2canvasOptions } from "html2canvas-pro";
-import type { CaptureResult, OutputOptions } from "./types/business-type.ts";
+import type { CaptureResult, OutputOptions } from "./types/business-type";
 
 /**
  * =====================
@@ -46,7 +46,7 @@ export async function captureElementAsImage(
   // 合并默认配置和用户传入的配置
   const finalCanvasConfig = { ...defaultCanvasConfig, ...canvasConfig };
 
-  console.log("config: ", finalCanvasConfig);
+  // console.log("config: ", finalCanvasConfig);
   let canvas: HTMLCanvasElement | null = null;
   let dataUrl: string | null = null;
   let blobResult: Blob | null = null;

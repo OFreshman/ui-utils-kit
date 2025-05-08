@@ -10,7 +10,6 @@ import { CheckStatus } from "./types/tree-operations-type";
 /**
  * 构建树形结构
  * @param {Array} nodes - 树节点数组，每个节点包含 `id` 和 `pid` 等属性
- * @param {boolean} [preserveChildren] - 是否保留原节点的 `children` 属性
  * @returns {Array} - 树形结构数组
  */
 export function buildTree(nodes: TreeNode[]): TreeNode[] {

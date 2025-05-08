@@ -34,11 +34,10 @@ import { ref } from "vue";
 const printEl = ref<HTMLElement | null>(null);
 
 async function onPrint() {
-  const res = await captureElementAsImage(printEl.value, {
+  await captureElementAsImage(printEl.value, {
     proxy: "https://h2c-proxy.netlify.app/api/",
     useCORS: false
   });
-  console.log("res: ", res);
 }
 </script>
 
