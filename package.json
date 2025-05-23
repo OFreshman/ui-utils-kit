@@ -6,11 +6,11 @@
   "packageManager": "pnpm@10.10.0",
   "description": "ui-utils-kit 是一个偏业务的前端工具函数库",
   "homepage": "https://ofreshman.github.io/ui-utils-kit/",
+  "author": "OFreshman",
   "repository": {
     "type": "git",
     "url": "https://github.com/OFreshman/ui-utils-kit"
   },
-  "author": "OFreshman",
   "bugs": {
     "url": "https://github.com/OFreshman/ui-utils-kit/issues"
   },
