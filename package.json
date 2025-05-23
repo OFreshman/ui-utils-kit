@@ -4,8 +4,8 @@
   "version": "1.3.10",
   "private": true,
   "packageManager": "pnpm@10.10.0",
-  "author": "OFreshman",
   "description": "ui-utils-kit 是一个偏业务的前端工具函数库",
+  "author": "OFreshman",
   "homepage": "https://ofreshman.github.io/ui-utils-kit/",
   "repository": {
     "type": "git",
