@@ -4,16 +4,16 @@
   "version": "1.3.7",
   "private": true,
   "packageManager": "pnpm@10.10.0",
-  "homepage": "https://ofreshman.github.io/ui-utils-kit/",
   "description": "ui-utils-kit 是一个偏业务的前端工具函数库",
+  "homepage": "https://ofreshman.github.io/ui-utils-kit/",
   "repository": {
     "type": "git",
     "url": "https://github.com/OFreshman/ui-utils-kit"
   },
+  "author": "OFreshman",
   "bugs": {
     "url": "https://github.com/OFreshman/ui-utils-kit/issues"
   },
-  "author": "OFreshman",
   "scripts": {
     "prepare": "simple-git-hooks",
     "play": "nr -C playground dev",
