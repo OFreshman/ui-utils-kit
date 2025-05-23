@@ -26,74 +26,34 @@ export function safeJsonParse<T>(jsonString: string, defaultValue: T): [Error | 
 
 
 /**
- * 数据脱敏函数
+ * 对敏感信息进行脱敏处理
  *
- * @param value - 原始数据
- * @param type - 脱敏类型
- * @returns 脱敏后的数据
+ * @param value - 原始字符串（如手机号、身份证号）
+ * @param type - 数据类型，可选值为 "mobile"（手机号）或 "idcard"（身份证号）
+ * @returns 脱敏后的字符串
  */
-export function desensitize(
-  value: string,
-  type: "mobile" | "idcard" | "email" | "bankcard" | "name"
-): string {
+export function desensitize(value: string, type: "mobile" | "idcard"): string {
   if (typeof value !== "string") {
-    return value;
+    return "";
   }
 
   switch (type) {
     case "mobile":
-      // 手机号：前三位、后四位保留
-      return value.replace(/^(1[3-9]\d)(\d{4})(\d{4})$/, (_, p1, _p2, p3) => `${p1}****${p3}`);
+      // 手机号脱敏：保留前3位和后4位，中间4位替换为星号
+      // 示例：13812345678 => 138****5678
+      return value.replace(/^(\d{3})\d{4}(\d{4})$/, "$1****$2");
 
     case "idcard":
-      // 身份证号：前6位、后4位保留
-      return value.replace(/^(.{6})\d+(.{4})$/, (_, p1, p2) => `${p1}******${p2}`);
-
-    case "email":
-      // 邮箱：保留首字母与域名（避免 ReDoS，使用 [^@] 代替 .）
-      return value.replace(/^(.)([^@]*)(@[^@]+)$/, (_, first: string, middle: string, domain: string) =>
-        `${first}${middle.replace(/./g, "*")}${domain}`);
-
-    case "bankcard":
-      // 银行卡：仅保留后4位
-      return value
-        .replace(/\s+/g, "")
-        .replace(/.(?=.{4})/g, "*")
-        .replace(/(.{4})/g, "$1 ")
-        .trim();
-
-    case "name":
-      if (/[\u4E00-\u9FA5]/.test(value)) {
-        const len = value.length;
-        if (len === 2) {
-          return `${value[0]}*`;
-        } else if (len >= 3) {
-          return value[0] + "*".repeat(len - 2) + value[len - 1];
-        } else {
-          return "*";
-        }
-      } else {
-        // 英文名脱敏：按单词拆分，每段：
-        // - 长度 >=3：保留首尾，中间 *
-        // - 长度 ==2：保留首位，末位 *
-        // - 长度 ==1：替换为 *
-        return value.split(" ").map((part) => {
-          const len = part.length;
-          if (len >= 3) {
-            return part[0] + "*".repeat(len - 2) + part[len - 1];
-          } else if (len === 2) {
-            return `${part[0]}*`;
-          } else if (len === 1) {
-            return "*";
-          }
-          return part;
-        }).join(" ");
-      }
+      // 身份证号脱敏：保留前6位和后4位，中间位数替换为星号
+      // 示例：110105199001011234 => 110105********1234
+      return value.replace(/^(\d{6})\d+(\d{4})$/, (_, p1, p2) => {
+        const middleLength = value.length - p1.length - p2.length;
+        const masked = "*".repeat(middleLength);
+        return `${p1}${masked}${p2}`;
+      });
 
     default:
-      // 默认：保留首尾字符
-      return value.replace(/^(.)(.*)(.)$/, (_, first: string, middle: string, last: string) =>
-        `${first}${middle.replace(/./g, "*")}${last}`);
+      return value;
   }
 }
 

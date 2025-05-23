@@ -245,44 +245,22 @@ if (err) {
 }
 ```
 
-### 2. desensitize(value: string, type: "mobile" | "idcard" | "email" | "bankcard" | "name"): string
+### 2. desensitize(value: string, type: "mobile" | "idcard"): string
 **功能描述**：对敏感信息（手机号或身份证号）进行脱敏处理，隐藏中间部分。
 
 **参数**
 - `value: string` — 原始字符串，如手机号或身份证号。
-- `type: "mobile" | "idcard" | "email" | "bankcard" | "name"`
-  - 默认保留首尾，中间脱敏部分
-  - `"mobile"`：脱敏手机号
-  - `"idcard"`：脱敏身份证号
-  - `"email"`：脱敏电子邮箱
-  - `"bankcard"`：脱敏银行卡号
-  - `"name"`：脱敏姓名
+- `type: "mobile" | "idcard"` — 数据类型，"mobile" 脱敏手机号，"idcard" 脱敏身份证号。
 
 **返回值**
-`string` — 脱敏后字符串，如果输入非字符串则返回空字符串。
+string — 脱敏后字符串，如果输入非字符串则返回空字符串。
 
 - 示例
 ```typescript
 import { desensitize } from 'ui-utils-kit';
 
-desensitize('13812345678', 'mobile');  // 输出：138****5678
-desensitize('110105199001011234', 'idcard'); // 输出：110105********1234
-
-desensitize("ethan.yin@openai.com", "email"); // => "e*********@openai.com"
-desensitize("a@domain.cn", "email"); // => "a@domain.cn"   // 本地部分仅一个字符，无需替换
-
-desensitize("6227001234567890", "bankcard"); // => "**** **** **** 7890"
-desensitize("6227 0012 3456 7890", "bankcard"); // => "**** **** **** 7890"
-
-desensitize("张三", "name"); // => "张*"
-desensitize("张三丰", "name"); // => "张*丰"
-
-// 英文名（按单词脱敏）
-//   - “John Doe” => “J**n D*e”
-//   - “Al Li”   => “A* L*”
-(desensitize("John Doe", "name"); // 输出: J**n D*e
-desensitize("Al Li", "name"); // 输出: A* L*
-
+console.log(desensitize('13812345678', 'mobile'));  // 输出：138****5678
+console.log(desensitize('110105199001011234', 'idcard')); // 输出：110105********1234
 ```
 
 ### 3. Mutex 类
