@@ -20,6 +20,8 @@ export interface OutputOptions {
   downloadName?: string;
   /** 是否返回 Blob 格式的图片数据 */
   blob?: boolean;
+  /** 是否返回 Data URL；自动下载时无论此项为何值都会生成 */
+  dataUrl?: boolean;
 }
 
 /**
@@ -27,8 +29,8 @@ export interface OutputOptions {
  */
 export interface CaptureResult {
   /** 生成的 Canvas 元素 */
-  canvas: HTMLCanvasElement | null;
-  /** 图片的 Data URL 字符串（若启用了下载，则存在） */
+  canvas: HTMLCanvasElement;
+  /** 图片的 Data URL 字符串（若启用了下载或 dataUrl 输出，则存在） */
   dataUrl: string | null;
   /** 图片的 Blob 对象（若启用了 blob 输出，则存在） */
   blob: Blob | null;

@@ -50,6 +50,31 @@ describe("common utilities", () => {
     expect(mutex.isLocked()).toBe(false);
   });
 
+  it("自动串行执行互斥任务，并在抛错后释放锁", async () => {
+    const mutex = new Mutex();
+    const order: string[] = [];
+
+    const first = mutex.runExclusive(async () => {
+      order.push("first:start");
+      await Promise.resolve();
+      order.push("first:end");
+      return 1;
+    });
+    const second = mutex.runExclusive(() => {
+      order.push("second");
+      return 2;
+    });
+
+    await expect(Promise.all([first, second])).resolves.toEqual([1, 2]);
+    expect(order).toEqual(["first:start", "first:end", "second"]);
+
+    await expect(mutex.runExclusive(() => {
+      throw new Error("failed");
+    })).rejects.toThrow("failed");
+    expect(mutex.isLocked()).toBe(false);
+    await expect(mutex.runExclusive(() => 3)).resolves.toBe(3);
+  });
+
   it("创建可停止的自校正时钟", () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000);

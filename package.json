@@ -27,7 +27,11 @@
     "lint:fix": "pnpm lint --fix",
     "stylelint:fix": "stylelint **/*.{css,scss,html,vue} --fix",
     "test:run": "vitest run",
-    "docs:sync": "node -e \"require('node:fs').copyFileSync('README.md', 'packages/core/README.md')\""
+    "docs:sync": "node scripts/sync-docs.mjs",
+    "docs:check": "node scripts/sync-docs.mjs --check",
+    "package:check": "node scripts/check-package.mjs",
+    "release:check": "node scripts/check-package.mjs --release",
+    "check": "pnpm lint && pnpm lint:type && pnpm test:run && pnpm build && pnpm docs:check && pnpm package:check"
   },
   "devDependencies": {
     "@xiaohe01/eslint-config": "catalog:",

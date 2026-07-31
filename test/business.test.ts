@@ -42,6 +42,32 @@ describe("captureElementAsImage", () => {
     expect(result).toEqual({ canvas, dataUrl: null, blob });
   });
 
+  it("无需下载也可以单独返回 Data URL", async () => {
+    const canvas = {
+      toBlob: vi.fn(),
+      toDataURL: vi.fn(() => "data:image/png;base64,image")
+    } as unknown as HTMLCanvasElement;
+    html2canvasMock.mockResolvedValue(canvas);
+
+    const result = await captureElementAsImage(
+      {} as HTMLElement,
+      {},
+      { download: false, dataUrl: true }
+    );
+
+    expect(canvas.toDataURL).toHaveBeenCalledOnce();
+    expect(result).toEqual({ canvas, dataUrl: "data:image/png;base64,image", blob: null });
+  });
+
+  it("非浏览器环境请求下载时尽早失败", async () => {
+    vi.stubGlobal("document", undefined);
+
+    await expect(captureElementAsImage({} as HTMLElement)).rejects.toThrow(
+      "download requires a browser document"
+    );
+    expect(html2canvasMock).not.toHaveBeenCalled();
+  });
+
   it("下载时创建并清理临时链接", async () => {
     const link = {
       click: vi.fn(),

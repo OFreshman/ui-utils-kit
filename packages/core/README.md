@@ -30,6 +30,11 @@
 - 2025-05-23
   - 增强脱敏函数（`desensitize`），支持邮箱、银行卡号、姓名。
   - 完善文档说明。
+- 2026-07-31
+  - 优化 `buildTree`、`mergeTrees` 与 `Mutex` 等深层或大批量场景的处理性能。
+  - 树选择类 API 支持直接传入节点 ID；`Mutex` 新增自动释放锁的 `runExclusive`。
+  - DOM 截图支持不下载时单独返回 Data URL，并补充非浏览器下载边界提示。
+  - CI 增加文档同步、发布包导出检查与跨平台验证；发布流程增加版本和标签一致性检查。
 
 ## 📌 简介
 
@@ -81,6 +86,7 @@ import { captureElementAsImage } from "ui-utils-kit/business";
 ### 行为约定
 
 - 树节点 ID 支持 `string | number`，不会进行隐式数字转换。
+- 勾选、关联选择和移除 API 均可传入节点对象或节点 ID，例如 `[node]`、`["node-id"]`。
 - `buildTree`、`mergeTrees` 和勾选状态更新函数会原地修改输入；筛选、搜索和删除函数返回新数组。
 - 扁平化、搜索和关联选择结果保持父节点优先的输入顺序；重复 ID 保留首个节点。
 - `html2canvas-pro` 是可选 peer，仅在调用 DOM 截图能力时延迟加载。
@@ -137,7 +143,7 @@ import { captureElementAsImage } from "ui-utils-kit/business";
 
 - **参数：**
   - `tree` (`Array<TreeNode>`)：嵌套树结构数据。
-  - `selectedNodes` (`Array<TreeNode>`)：当前选中的节点数组（按 `id` 匹配，其余字段可省略）。
+  - `selectedNodes` (`ReadonlyArray<TreeNode | TreeNodeId>`)：当前选中的节点或节点 ID。
 
 - **返回值：**
   - `Array<TreeNode>`：更新后的树（与输入同一引用）。
@@ -154,7 +160,7 @@ import { captureElementAsImage } from "ui-utils-kit/business";
       children: [{ id: 2, name: 'Child 1', check: CheckStatus.Unchecked }]
     }
   ];
-  const selectedNodes = [{ id: 2 }];
+  const selectedNodes = [2];
 
   const updatedTree = updateTreeCheckStatus(tree, selectedNodes);
   console.log(updatedTree);
@@ -166,7 +172,7 @@ import { captureElementAsImage } from "ui-utils-kit/business";
 
 - **参数：**
   - `tree` (`Array<TreeNode>`)：扁平树结构数组，节点包含 `id` 与 `pid`。
-  - `selectedNodes` (`Array<TreeNode>`)：当前选中的节点数组（按 `id` 匹配）。
+  - `selectedNodes` (`ReadonlyArray<TreeNode | TreeNodeId>`)：当前选中的节点或节点 ID。
 
 - **返回值：**
   - `Array<TreeNode>`：更新后的扁平数组（与输入同一引用）。
@@ -202,7 +208,7 @@ import { captureElementAsImage } from "ui-utils-kit/business";
 
 - **参数：**
   - `treeData` (`Array<TreeNode>`)：扁平树结构数组。
-  - `selectedNodes` (`Array<TreeNode>`)：选中的节点数组（按 `id` 匹配）。
+  - `selectedNodes` (`ReadonlyArray<TreeNode | TreeNodeId>`)：选中的节点或节点 ID。
 
 - **返回值：**
   - `Array<TreeNode>`：筛选结果数组，顺序与原数组一致。
@@ -213,7 +219,7 @@ import { captureElementAsImage } from "ui-utils-kit/business";
 
 - **参数：**
   - `treeArr` (`Array<TreeNode>`)：扁平树结构数组。
-  - `selectedNodes` (`Array<TreeNode>`)：要移除的节点数组（按 `id` 匹配）。
+  - `selectedNodes` (`ReadonlyArray<TreeNode | TreeNodeId>`)：要移除的节点或节点 ID。
 
 - **返回值：**
   - `Array<TreeNode>`：移除后的新数组，顺序与原数组一致。
@@ -235,7 +241,9 @@ import { captureElementAsImage } from "ui-utils-kit/business";
 
 ### 1. DOM 转图片（例如生成海报）
 
-**`captureElementAsImage`** 将 DOM 元素转换为图片（canvas），支持自动下载或返回 Blob 格式数据。可选 peer 依赖 `html2canvas-pro` 仅在调用本函数时延迟加载。
+**`captureElementAsImage`** 将 DOM 元素转换为图片（canvas），支持自动下载、返回 Blob 或 Data URL。可选 peer 依赖 `html2canvas-pro` 仅在调用本函数时延迟加载。
+
+> 自动下载依赖浏览器 `document`。SSR、Node.js 或 Worker 环境应设置 `download: false`，并按需启用 `blob` / `dataUrl`。
 
 > **⚠️ 跨域图片注意事项**
 >
@@ -257,7 +265,7 @@ import { captureElementAsImage } from "ui-utils-kit/business";
   - **参数：**
     - `element` (`HTMLElement | null`)：目标 DOM 元素。
     - `canvasConfig` (`CaptureCanvasOptions`，可选)：配置项，如 `scale`、`backgroundColor` 等。
-    - `outputOptions` (`OutputOptions`，可选)：输出设置，默认为自动下载图片。
+    - `outputOptions` (`OutputOptions`，可选)：输出设置，默认为自动下载图片；可通过 `blob: true` 或 `dataUrl: true` 请求对应数据。
 
   - **示例：**
     ```typescript
@@ -265,7 +273,7 @@ import { captureElementAsImage } from "ui-utils-kit/business";
 
     const element = document.getElementById('capture-area');
 
-    captureElementAsImage(element, { scale: 2 }, { download: true, downloadName: 'screenshot' })
+    captureElementAsImage(element, { scale: 2 }, { download: false, dataUrl: true })
       .then(({ canvas, dataUrl, blob }) => {
         console.log('Canvas:', canvas);
         console.log('Data URL:', dataUrl);
@@ -345,7 +353,7 @@ desensitize("Al Li", "name"); // 输出: A* L*
 ```
 
 ### 3. Mutex 类
-功能描述：模拟互斥锁机制，用于控制异步操作对共享资源的访问，确保同一时刻只有一个操作进入临界区。
+功能描述：模拟互斥锁机制，用于控制异步操作对共享资源的访问，确保同一时刻只有一个操作进入临界区。优先使用 `runExclusive(task)`，它会在任务完成或抛错后自动释放锁；需要跨多个调用手动控制时再使用 `lock()` / `unlock()`。
 > ##### 以下是一些应用场景
 > - 防止按钮重复点击：避免用户多次点击同一按钮导致重复网络请求或状态混乱。
 > - 强制 API 调用顺序：确保一组异步接口按预期顺序依次执行，防止乱序带来的逻辑错误。
@@ -374,20 +382,15 @@ const submitMutex = new Mutex()
 
 // 点击处理函数
 const onSubmit = async () => {
-  // 获取锁：若已有操作在进行，则挂起后续调用
-  await submitMutex.lock()
-  try {
+  await submitMutex.runExclusive(async () => {
     isSubmitting.value = true
-    // 模拟网络请求
-    await new Promise<void>(resolve => setTimeout(resolve, 1500))
-    uni.showToast({ title: '提交成功' })
-  } catch (err: any) {
-    uni.showModal({ title: '错误', content: err.message })
-  } finally {
-    isSubmitting.value = false
-    // 释放锁，允许下一次点击
-    submitMutex.unlock()
-  }
+    try {
+      await new Promise<void>(resolve => setTimeout(resolve, 1500))
+      uni.showToast({ title: '提交成功' })
+    } finally {
+      isSubmitting.value = false
+    }
+  })
 }
 </script>
 ```
@@ -491,6 +494,10 @@ type TreeNode<TExtra extends object = Record<never, never>> = {
   children?: Array<TreeNode<TExtra>>;
   isMatched?: boolean;
 } & TExtra;
+
+type TreeNodeSelection<TExtra extends object = Record<never, never>> =
+  | TreeNodeId
+  | TreeNode<TExtra>;
 ```
 
 > `TExtra` 用于保留业务扩展字段。例如节点带 `label` 字段时，`TreeNode<{ label: string }>` 可以在不放宽类型的情况下通过类型检查。
@@ -505,6 +512,20 @@ export const CheckStatus = {
 
 export type CheckStatusType = "0" | "1" | "2";
 ```
+
+---
+
+## 🛠️ 开发与发布校验
+
+```bash
+# lint、类型、测试、构建、文档同步状态和发布包导出检查
+pnpm check
+
+# 修改根 README 后同步 npm 包内文档
+pnpm docs:sync
+```
+
+CI 会在 Linux 上执行完整校验，并在 Windows、macOS 上额外执行构建与测试。发布仅由 `v*` 标签触发；标签必须严格等于 `v<packages/core version>`，例如包版本为 `1.4.0` 时应使用 `v1.4.0`。
 
 ---
 

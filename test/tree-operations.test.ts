@@ -59,7 +59,7 @@ describe("tree operations", () => {
       ]
     }];
 
-    updateTreeCheckStatus(nested, [node("a", "root", "A")]);
+    updateTreeCheckStatus(nested, ["a"]);
     expect(nested[0]?.check).toBe(CheckStatus.HalfChecked);
     expect(nested[0]?.children?.map((item) => item.check)).toEqual([
       CheckStatus.Checked,
@@ -71,7 +71,7 @@ describe("tree operations", () => {
       { ...node("a", "root", "A"), check: CheckStatus.Checked },
       { ...node("b", "root", "B"), check: CheckStatus.Checked }
     ];
-    updateTreeCheckStatusFlat(flat, [node("b", "root", "B")]);
+    updateTreeCheckStatusFlat(flat, ["b"]);
     expect(flat.map((item) => item.check)).toEqual([
       CheckStatus.HalfChecked,
       CheckStatus.Unchecked,
@@ -101,7 +101,7 @@ describe("tree operations", () => {
       node("other", null, "Other")
     ];
 
-    expect(removeNodesFromTree(flat, [node("child", "root", "Child")]).map((item) => item.id))
+    expect(removeNodesFromTree(flat, ["child"]).map((item) => item.id))
       .toEqual(["root", "other"]);
 
     const target = [node("root", null, "Root")];
@@ -113,6 +113,20 @@ describe("tree operations", () => {
     expect(target.map((item) => item.id)).toEqual(["root", "child", "grandchild"]);
   });
 
+  it("在线性扫描中稳定合并深层乱序节点", () => {
+    const target = [node("root", null, "Root")];
+    const reversed = Array.from({ length: 2_000 }, (_, index) => {
+      const current = 2_000 - index;
+      return node(`node-${current}`, current === 1 ? "root" : `node-${current - 1}`, `Node ${current}`);
+    });
+
+    mergeTrees(target, reversed);
+
+    expect(target).toHaveLength(2_001);
+    expect(target[1]?.id).toBe("node-1");
+    expect(target.at(-1)?.id).toBe("node-2000");
+  });
+
   it("选择节点时返回其祖先和全部后代", () => {
     const flat = [
       node("root", null, "Root"),
@@ -121,7 +135,26 @@ describe("tree operations", () => {
       node("other", null, "Other")
     ];
 
-    expect(selectRelatedNodes(flat, [node("target", "root", "Target")]).map((item) => item.id))
+    expect(selectRelatedNodes(flat, ["target"]).map((item) => item.id))
       .toEqual(["root", "target", "child"]);
+  });
+
+  it("构建深树时忽略孤儿链和环，且不依赖递归调用栈", () => {
+    const nodes = Array.from({ length: 5_000 }, (_, index) =>
+      node(`node-${index}`, index === 0 ? null : `node-${index - 1}`, `Node ${index}`));
+    nodes.push(node("orphan-child", "orphan", "Orphan child"));
+    nodes.push(node("cycle-a", "cycle-b", "Cycle A"));
+    nodes.push(node("cycle-b", "cycle-a", "Cycle B"));
+
+    const tree = buildTree(nodes);
+    let current: NamedNode | undefined = tree[0];
+    let depth = 0;
+    while (current) {
+      depth++;
+      current = current.children?.[0];
+    }
+
+    expect(tree).toHaveLength(1);
+    expect(depth).toBe(5_000);
   });
 });

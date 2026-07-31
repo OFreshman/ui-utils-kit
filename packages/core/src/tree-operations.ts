@@ -1,4 +1,4 @@
-import type { TreeNode, TreeNodeId } from "./types/tree-operations-type";
+import type { TreeNode, TreeNodeId, TreeNodeSelection } from "./types/tree-operations-type";
 import { CheckStatus } from "./types/tree-operations-type";
 
 /**
@@ -11,6 +11,11 @@ const ROOT_PID = null;
 
 type NodeExtra = object;
 
+interface MergeCandidate<TExtra extends NodeExtra> {
+  index: number;
+  node: TreeNode<TExtra>;
+}
+
 function normalizePid(pid: TreeNodeId | null | undefined): TreeNodeId | null {
   return pid ?? ROOT_PID;
 }
@@ -21,6 +26,12 @@ function getNodeByPid<TExtra extends NodeExtra>(
 ): TreeNode<TExtra> | undefined {
   const normalizedPid = normalizePid(pid);
   return normalizedPid === ROOT_PID ? undefined : nodeById.get(normalizedPid);
+}
+
+function getSelectionId<TExtra extends NodeExtra>(
+  selection: TreeNodeSelection<TExtra>
+): TreeNodeId {
+  return typeof selection === "object" ? selection.id : selection;
 }
 
 /**
@@ -35,6 +46,7 @@ export function buildTree<TExtra extends NodeExtra>(nodes: Array<TreeNode<TExtra
   const roots: Array<TreeNode<TExtra>> = [];
   const nodeById = new Map<TreeNodeId, TreeNode<TExtra>>();
   const uniqueNodes: Array<TreeNode<TExtra>> = [];
+  const isValidById = new Map<TreeNodeId, boolean>();
 
   // 先根据 id 创建映射，同时初始化 children 数组。
   for (const node of nodes) {
@@ -48,24 +60,53 @@ export function buildTree<TExtra extends NodeExtra>(nodes: Array<TreeNode<TExtra
     uniqueNodes.push(node);
   }
 
-  // 沿父节点链向上检查，避免将自身或已成环的节点挂入结果树。
-  function createsCycle(node: TreeNode<TExtra>, parent: TreeNode<TExtra>): boolean {
-    const visited = new Set<TreeNodeId>();
-    let current: TreeNode<TExtra> | undefined = parent;
-
-    while (current && !visited.has(current.id)) {
-      if (current.id === node.id) {
-        return true;
-      }
-      visited.add(current.id);
-      current = getNodeByPid(nodeById, current.pid);
+  // 缓存每条父链是否最终可到达根节点，避免深树中重复向上扫描。
+  for (const node of uniqueNodes) {
+    if (isValidById.has(node.id)) {
+      continue;
     }
 
-    return current !== undefined;
+    const path: Array<TreeNode<TExtra>> = [];
+    const pathIds = new Set<TreeNodeId>();
+    let current = node;
+    let isValid = false;
+
+    while (true) {
+      const cached = isValidById.get(current.id);
+      if (cached !== undefined) {
+        isValid = cached;
+        break;
+      }
+      if (pathIds.has(current.id)) {
+        break;
+      }
+
+      path.push(current);
+      pathIds.add(current.id);
+      const pid = normalizePid(current.pid);
+      if (pid === ROOT_PID) {
+        isValid = true;
+        break;
+      }
+
+      const parent = nodeById.get(pid);
+      if (!parent) {
+        break;
+      }
+      current = parent;
+    }
+
+    for (const pathNode of path) {
+      isValidById.set(pathNode.id, isValid);
+    }
   }
 
   // 根据 pid 关系将节点组合成树结构。
   for (const node of uniqueNodes) {
+    if (!isValidById.get(node.id)) {
+      continue;
+    }
+
     const pid = normalizePid(node.pid);
     if (pid === ROOT_PID) {
       // pid 为空表示根节点。
@@ -74,7 +115,7 @@ export function buildTree<TExtra extends NodeExtra>(nodes: Array<TreeNode<TExtra
     }
 
     const parent = nodeById.get(pid);
-    if (parent && !createsCycle(node, parent)) {
+    if (parent) {
       // 将当前节点加入父节点的 children 数组。
       parent.children!.push(node);
     }
@@ -132,12 +173,12 @@ export function treeToArr<TExtra extends NodeExtra>(data: Array<TreeNode<TExtra>
  * 子节点状态自动更新为选中、半选或未选中。该函数会原地修改 `tree`。
  *
  * @param tree - 嵌套树结构数组
- * @param selectedNodes - 当前选中的节点数组
+ * @param selectedNodes - 当前选中的节点或节点 ID
  * @returns 更新后的树结构数组
  */
 export function updateTreeCheckStatus<TExtra extends NodeExtra>(
   tree: Array<TreeNode<TExtra>>,
-  selectedNodes: Array<TreeNode<TExtra>>
+  selectedNodes: ReadonlyArray<TreeNodeSelection<TExtra>>
 ): Array<TreeNode<TExtra>> {
   const nodeById = new Map<TreeNodeId, TreeNode<TExtra>>();
   const parentByNode = new Map<TreeNode<TExtra>, TreeNode<TExtra>>();
@@ -189,7 +230,7 @@ export function updateTreeCheckStatus<TExtra extends NodeExtra>(
 
   // 首先设置选中节点及其后代的状态。
   for (const selectedNode of selectedNodes) {
-    const target = nodeById.get(selectedNode.id);
+    const target = nodeById.get(getSelectionId(selectedNode));
     if (target) {
       setDescendantsChecked(target);
     }
@@ -214,7 +255,7 @@ export function updateTreeCheckStatus<TExtra extends NodeExtra>(
 
   // 更新选中节点及其父节点的状态。
   for (const selectedNode of selectedNodes) {
-    const target = nodeById.get(selectedNode.id);
+    const target = nodeById.get(getSelectionId(selectedNode));
     if (target) {
       updateAncestors(target);
     }
@@ -229,12 +270,12 @@ export function updateTreeCheckStatus<TExtra extends NodeExtra>(
  * 该函数会原地修改 `tree`。
  *
  * @param tree - 扁平数组格式的树结构
- * @param selectedNodes - 当前选中的节点数组
+ * @param selectedNodes - 当前选中的节点或节点 ID
  * @returns 更新后的扁平数组格式树结构
  */
 export function updateTreeCheckStatusFlat<TExtra extends NodeExtra>(
   tree: Array<TreeNode<TExtra>>,
-  selectedNodes: Array<TreeNode<TExtra>>
+  selectedNodes: ReadonlyArray<TreeNodeSelection<TExtra>>
 ): Array<TreeNode<TExtra>> {
   const nodeById = new Map<TreeNodeId, TreeNode<TExtra>>();
   const childrenByPid = new Map<TreeNodeId | null, Array<TreeNode<TExtra>>>();
@@ -269,7 +310,7 @@ export function updateTreeCheckStatusFlat<TExtra extends NodeExtra>(
 
   // 首先设置选中节点及其后代的状态。
   for (const selectedNode of selectedNodes) {
-    const target = nodeById.get(selectedNode.id);
+    const target = nodeById.get(getSelectionId(selectedNode));
     if (target) {
       setDescendantsChecked(target);
     }
@@ -294,7 +335,7 @@ export function updateTreeCheckStatusFlat<TExtra extends NodeExtra>(
 
   // 更新选中节点及其父节点的状态。
   for (const selectedNode of selectedNodes) {
-    const target = nodeById.get(selectedNode.id);
+    const target = nodeById.get(getSelectionId(selectedNode));
     if (target) {
       updateAncestors(target);
     }
@@ -377,16 +418,16 @@ export function searchTreeWithRelations<TExtra extends NodeExtra>(
  * 从树形结构中移除指定的节点及其所有后代，结果保持原数组顺序。
  *
  * @param treeArr - 当前的扁平树形结构数组
- * @param selectedNodes - 要移除的节点数组
+ * @param selectedNodes - 要移除的节点或节点 ID
  * @returns 过滤后的扁平树形结构数组
  */
 export function removeNodesFromTree<TExtra extends NodeExtra>(
   treeArr: Array<TreeNode<TExtra>> = [],
-  selectedNodes: Array<TreeNode<TExtra>> = []
+  selectedNodes: ReadonlyArray<TreeNodeSelection<TExtra>> = []
 ): Array<TreeNode<TExtra>> {
   const childrenByPid = new Map<TreeNodeId | null, Array<TreeNode<TExtra>>>();
   // 使用 Set 存储需要移除的节点 ID，便于快速查找并避免重复。
-  const idsToRemove = new Set<TreeNodeId>(selectedNodes.map((node) => node.id));
+  const idsToRemove = new Set<TreeNodeId>(selectedNodes.map(getSelectionId));
 
   // 构建父节点到子节点的映射，以便递归扩展删除范围。
   for (const node of treeArr) {
@@ -417,7 +458,8 @@ export function removeNodesFromTree<TExtra extends NodeExtra>(
 
 /**
  * 合并节点数组到已有的树形结构中。
- * 支持待合并节点乱序；重复、孤儿和成环节点会被忽略。
+ * 支持待合并节点乱序；重复、孤儿和成环节点会被忽略。父链解析结果会被缓存，
+ * 即使输入是深层逆序链，也不会逐轮重复扫描全部待合并节点。
  * 该函数沿用现有 API，会原地追加到 `treeArr`。
  *
  * @param treeArr - 现有的扁平树形结构数组
@@ -428,34 +470,98 @@ export function mergeTrees<TExtra extends NodeExtra>(
   treeArr: Array<TreeNode<TExtra>> = [],
   nodes: Array<TreeNode<TExtra>> = []
 ): Array<TreeNode<TExtra>> {
-  // 存储现有树中所有节点的 id，便于判断节点是否已存在以及父节点是否可用。
   const existingIds = new Set<TreeNodeId>(treeArr.map((node) => node.id));
-  // 重复节点只保留首个，已存在于树中的节点不再进入待处理队列。
-  let pending = nodes.filter((node, index) =>
-    !existingIds.has(node.id)
-    && nodes.findIndex((candidate) => candidate.id === node.id) === index);
+  const seenIds = new Set<TreeNodeId>();
+  const candidates: Array<MergeCandidate<TExtra>> = [];
+  const candidateById = new Map<TreeNodeId, MergeCandidate<TExtra>>();
 
-  while (pending.length > 0) {
-    const nextPending: Array<TreeNode<TExtra>> = [];
-    let added = 0;
+  // 只保留首个新节点；记录输入位置，以保持原有的稳定追加顺序。
+  for (const node of nodes) {
+    if (existingIds.has(node.id) || seenIds.has(node.id)) {
+      continue;
+    }
+    seenIds.add(node.id);
+    const candidate = { index: candidates.length, node };
+    candidates.push(candidate);
+    candidateById.set(node.id, candidate);
+  }
 
-    // 每轮添加根节点或父节点已经存在的节点，以支持输入节点乱序。
-    for (const node of pending) {
-      const pid = normalizePid(node.pid);
-      if (pid === ROOT_PID || existingIds.has(pid)) {
-        treeArr.push(node);
-        existingIds.add(node.id);
-        added++;
-      } else {
-        nextPending.push(node);
+  // rank 表示旧实现需要第几轮才能加入。缓存父链结果后，每个节点只会被访问一次。
+  const rankById = new Map<TreeNodeId, number | null>();
+  for (const candidate of candidates) {
+    if (rankById.has(candidate.node.id)) {
+      continue;
+    }
+
+    const path: Array<MergeCandidate<TExtra>> = [];
+    const pathIds = new Set<TreeNodeId>();
+    let current = candidate;
+    let anchor: typeof candidate | undefined;
+    let anchorRank: number | null = null;
+
+    while (true) {
+      if (rankById.has(current.node.id)) {
+        anchor = current;
+        anchorRank = rankById.get(current.node.id) ?? null;
+        break;
       }
+      if (pathIds.has(current.node.id)) {
+        break;
+      }
+
+      path.push(current);
+      pathIds.add(current.node.id);
+      const pid = normalizePid(current.node.pid);
+      if (pid === ROOT_PID || existingIds.has(pid)) {
+        path.pop();
+        rankById.set(current.node.id, 0);
+        anchor = current;
+        anchorRank = 0;
+        break;
+      }
+
+      const parent = candidateById.get(pid);
+      if (!parent) {
+        break;
+      }
+      current = parent;
     }
 
-    // 一轮中没有节点可添加，说明剩余节点为孤儿节点或存在环。
-    if (added === 0) {
-      break;
+    if (!anchor || anchorRank === null) {
+      for (const pathNode of path) {
+        rankById.set(pathNode.node.id, null);
+      }
+      continue;
     }
-    pending = nextPending;
+
+    let parent = anchor;
+    let parentRank = anchorRank;
+    for (let index = path.length - 1; index >= 0; index--) {
+      const child = path[index];
+      if (!child) {
+        continue;
+      }
+      const rank = parentRank + (child.index < parent.index ? 1 : 0);
+      rankById.set(child.node.id, rank);
+      parent = child;
+      parentRank = rank;
+    }
+  }
+
+  const nodesByRank: Array<Array<TreeNode<TExtra>>> = Array.from(
+    { length: candidates.length },
+    () => []
+  );
+  for (const candidate of candidates) {
+    const rank = rankById.get(candidate.node.id);
+    if (rank !== undefined && rank !== null) {
+      nodesByRank[rank]?.push(candidate.node);
+    }
+  }
+  for (const rankedNodes of nodesByRank) {
+    for (const node of rankedNodes) {
+      treeArr.push(node);
+    }
   }
 
   return treeArr;
@@ -466,12 +572,12 @@ export function mergeTrees<TExtra extends NodeExtra>(
  * 结果保持原数组顺序。
  *
  * @param treeData - 扁平树形结构数组
- * @param selectedNodes - 选中的节点数组
+ * @param selectedNodes - 选中的节点或节点 ID
  * @returns 选中节点、其全部祖先和全部后代
  */
 export function selectRelatedNodes<TExtra extends NodeExtra>(
   treeData: Array<TreeNode<TExtra>>,
-  selectedNodes: Array<TreeNode<TExtra>> = []
+  selectedNodes: ReadonlyArray<TreeNodeSelection<TExtra>> = []
 ): Array<TreeNode<TExtra>> {
   const nodeById = new Map<TreeNodeId, TreeNode<TExtra>>();
   const childrenByPid = new Map<TreeNodeId | null, Array<TreeNode<TExtra>>>();
@@ -491,9 +597,10 @@ export function selectRelatedNodes<TExtra extends NodeExtra>(
   // 使用 Set 存储已选择节点的 id，避免重复。
   const queue: TreeNodeId[] = [];
   for (const selectedNode of selectedNodes) {
-    if (nodeById.has(selectedNode.id) && !includedIds.has(selectedNode.id)) {
-      includedIds.add(selectedNode.id);
-      queue.push(selectedNode.id);
+    const selectedId = getSelectionId(selectedNode);
+    if (nodeById.has(selectedId) && !includedIds.has(selectedId)) {
+      includedIds.add(selectedId);
+      queue.push(selectedId);
     }
   }
 
@@ -514,7 +621,7 @@ export function selectRelatedNodes<TExtra extends NodeExtra>(
   // 3. 沿 pid 链查找所有父节点，并通过 visited 防止循环引用。
   for (const selectedNode of selectedNodes) {
     const visited = new Set<TreeNodeId>();
-    let parent = getNodeByPid(nodeById, nodeById.get(selectedNode.id)?.pid);
+    let parent = getNodeByPid(nodeById, nodeById.get(getSelectionId(selectedNode))?.pid);
 
     while (parent && !visited.has(parent.id)) {
       visited.add(parent.id);
@@ -527,4 +634,9 @@ export function selectRelatedNodes<TExtra extends NodeExtra>(
   return treeData.filter((node) => includedIds.has(node.id));
 }
 export { CheckStatus };
-export type { CheckStatusType, TreeNode, TreeNodeId } from "./types/tree-operations-type";
+export type {
+  CheckStatusType,
+  TreeNode,
+  TreeNodeId,
+  TreeNodeSelection
+} from "./types/tree-operations-type";

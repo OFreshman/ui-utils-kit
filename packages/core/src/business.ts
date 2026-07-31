@@ -9,7 +9,7 @@ import type { CaptureCanvasOptions, CaptureResult, OutputOptions } from "./types
 
 
 /**
- * 将 DOM 元素转换为图片（canvas），并支持自动下载或返回 Blob 格式数据。
+ * 将 DOM 元素转换为图片（canvas），并支持自动下载、返回 Blob 或 Data URL。
  *
  * @param element - 需要捕捉的 DOM 元素。
  * @param canvasConfig - html2canvas 的配置项，例如 scale、backgroundColor 等。
@@ -19,7 +19,7 @@ import type { CaptureCanvasOptions, CaptureResult, OutputOptions } from "./types
 export async function captureElementAsImage(
   element: HTMLElement | null,
   canvasConfig: CaptureCanvasOptions = {},
-  outputOptions: OutputOptions = { download: true, downloadName: "下载图片", blob: false }
+  outputOptions: OutputOptions = {}
 ): Promise<CaptureResult> {
   if (!element) {
     throw new Error("captureElementAsImage element required");
@@ -35,18 +35,22 @@ export async function captureElementAsImage(
   };
 
   // 合并默认输出选项和用户传入的选项
-  const defaultOutputOptions: OutputOptions = {
+  const finalOutputOptions: OutputOptions = {
     download: true,
     downloadName: "下载图片",
     blob: false,
+    dataUrl: false,
     ...outputOptions
   };
+
+  if (finalOutputOptions.download && typeof document === "undefined") {
+    throw new Error("captureElementAsImage download requires a browser document");
+  }
 
   // 合并默认配置和用户传入的配置
   const finalCanvasConfig = { ...defaultCanvasConfig, ...canvasConfig };
 
   // console.log("config: ", finalCanvasConfig);
-  let canvas: HTMLCanvasElement | null = null;
   let dataUrl: string | null = null;
   let blobResult: Blob | null = null;
 
@@ -55,23 +59,27 @@ export async function captureElementAsImage(
 
   // 利用 html2canvas 将 DOM 元素渲染成 canvas
   // 考虑到 html-to-image 虽然渲染快（仅web就优先考虑），但是在 ios和android 兼容性较弱，这里使用 html2canvas 进行渲染
-  canvas = await html2canvas(element, finalCanvasConfig as Partial<Html2canvasOptions>);
+  const canvas = await html2canvas(element, finalCanvasConfig as Partial<Html2canvasOptions>);
 
-  // 如果需要下载，则生成 data URL 并触发下载
-  if (defaultOutputOptions.download) {
+  // 下载和显式 dataUrl 输出复用同一次序列化。
+  if (finalOutputOptions.download || finalOutputOptions.dataUrl) {
     dataUrl = canvas.toDataURL("image/png");
+  }
+
+  // 如果需要下载，则生成临时链接并触发下载。
+  if (finalOutputOptions.download && dataUrl) {
     const link = document.createElement("a");
     link.href = dataUrl;
-    link.download = `${defaultOutputOptions.downloadName}.png`;
+    link.download = `${finalOutputOptions.downloadName}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   }
 
   // 如果需要 blob 格式，则封装 canvas.toBlob 为 Promise，并等待转换完成
-  if (defaultOutputOptions.blob) {
+  if (finalOutputOptions.blob) {
     blobResult = await new Promise<Blob>((resolve, reject) => {
-      canvas!.toBlob((blob) => {
+      canvas.toBlob((blob) => {
         if (blob) {
           resolve(blob);
         } else {

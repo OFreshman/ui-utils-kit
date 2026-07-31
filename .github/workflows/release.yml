@@ -1,17 +1,21 @@
 name: Release
 
-permissions:
-  id-token: write
-  contents: write
-
 on:
   push:
     tags:
       - 'v*'
 
+permissions:
+  id-token: write
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout tag
         uses: actions/checkout@v4
@@ -31,19 +35,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build
-        run: pnpm build
+      - name: Run full validation
+        run: pnpm check
 
-      - name: Test
-        run: pnpm test:run
+      - name: Validate release tag
+        run: pnpm release:check
 
       - name: Generate changelog
         run: pnpm dlx changelogithub
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Publish
-        run: pnpm publish --filter "./packages/**" --access public
+      - name: Publish package
+        run: pnpm --dir packages/core publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true

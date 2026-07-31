@@ -112,6 +112,9 @@ export class Mutex {
    */
   #queue: Array<() => void> = [];
 
+  /** 已经消费过的队首位置，避免频繁 shift 导致数组整体搬移。 */
+  #queueHead = 0;
+
   /**
    * 获取锁。如果当前已锁定，则将请求加入队列，等待解锁后依次获取。
    * @returns Promise<void> - 当获取到锁时，Promise 被 resolve。
@@ -133,9 +136,15 @@ export class Mutex {
    * 释放锁。如果有等待队列，则唤醒队列中的下一个请求；否则将锁状态设为未锁定。
    */
   public unlock(): void {
-    if (this.#queue.length > 0) {
+    if (this.#queueHead < this.#queue.length) {
       // 唤醒队列中的下一个请求
-      const nextResolve = this.#queue.shift();
+      const nextResolve = this.#queue[this.#queueHead];
+      this.#queueHead++;
+
+      if (this.#queueHead === this.#queue.length) {
+        this.#queue = [];
+        this.#queueHead = 0;
+      }
       nextResolve?.();
     } else {
       // 没有等待请求，释放锁
@@ -156,7 +165,22 @@ export class Mutex {
    * @returns number - 等待队列中的请求数量
    */
   public queueLength(): number {
-    return this.#queue.length;
+    return this.#queue.length - this.#queueHead;
+  }
+
+  /**
+   * 在锁内执行任务，并在任务完成或抛错后自动释放锁。
+   *
+   * @param task - 需要串行执行的同步或异步任务
+   * @returns 任务的返回值
+   */
+  public async runExclusive<T>(task: () => T | PromiseLike<T>): Promise<T> {
+    await this.lock();
+    try {
+      return await task();
+    } finally {
+      this.unlock();
+    }
   }
 
 }

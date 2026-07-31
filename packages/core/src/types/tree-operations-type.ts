@@ -26,3 +26,8 @@ export type TreeNode<TExtra extends object = Record<never, never>> = {
   children?: Array<TreeNode<TExtra>>;
   isMatched?: boolean;
 } & TExtra;
+
+/** 可用于树选择类 API 的节点或节点 ID。 */
+export type TreeNodeSelection<TExtra extends object = Record<never, never>> =
+  | TreeNodeId
+  | TreeNode<TExtra>;
