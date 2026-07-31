@@ -16,35 +16,27 @@
   },
   "scripts": {
     "prepare": "simple-git-hooks",
-    "play": "nr -C playground dev",
-    "build": "nr -r --filter=./packages/* build",
+    "play": "pnpm --dir playground dev",
+    "build": "pnpm --recursive --filter=\"./packages/*\" build",
     "release": "bumpp -r",
     "lint": "eslint --cache .",
     "lint:type": "tsc --noEmit",
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest run --coverage",
-    "lint:fix": "nr lint --fix",
-    "stylelint:fix": "stylelint **/*.{css,scss,html,vue} --fix"
-  },
-  "dependencies": {
-    "@antfu/nip": "catalog:",
-    "husky": "catalog:",
-    "ui-utils-kit": "catalog:"
+    "lint:fix": "pnpm lint --fix",
+    "stylelint:fix": "stylelint **/*.{css,scss,html,vue} --fix",
+    "test:run": "vitest run",
+    "docs:sync": "node -e \"require('node:fs').copyFileSync('README.md', 'packages/core/README.md')\""
   },
   "devDependencies": {
-    "@antfu/ni": "catalog:",
-    "@antfu/utils": "catalog:",
     "@xiaohe01/eslint-config": "catalog:",
     "@xiaohe01/tsconfig": "catalog:",
     "bumpp": "catalog:",
     "eslint": "catalog:",
-    "esno": "catalog:",
     "lint-staged": "catalog:",
     "simple-git-hooks": "catalog:",
     "typescript": "catalog:",
-    "unbuild": "catalog:",
-    "vite": "catalog:",
     "vitest": "catalog:"
   },
   "simple-git-hooks": {
