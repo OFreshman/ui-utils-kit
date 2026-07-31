@@ -2,11 +2,17 @@ import { defineBuildConfig } from "unbuild";
 
 export default defineBuildConfig({
   entries: [
-    "src/index.ts"
+    "src/index",
+    "src/common",
+    "src/tree-operations",
+    "src/business"
   ],
   clean: true,
   declaration: true,
   rollup: {
-    emitCJS: true
+    emitCJS: true,
+    output: {
+      exports: "named"
+    }
   }
 });

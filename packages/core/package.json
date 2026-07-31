@@ -24,15 +24,38 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
-    "./*": "./*"
+    "./common": {
+      "types": "./dist/common.d.ts",
+      "import": "./dist/common.mjs",
+      "require": "./dist/common.cjs"
+    },
+    "./tree": {
+      "types": "./dist/tree-operations.d.ts",
+      "import": "./dist/tree-operations.mjs",
+      "require": "./dist/tree-operations.cjs"
+    },
+    "./business": {
+      "types": "./dist/business.d.ts",
+      "import": "./dist/business.mjs",
+      "require": "./dist/business.cjs"
+    },
+    "./package.json": "./package.json"
   },
   "main": "./dist/index.mjs",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "typesVersions": {
     "*": {
+      "common": [
+        "./dist/common.d.ts"
+      ],
+      "tree": [
+        "./dist/tree-operations.d.ts"
+      ],
+      "business": [
+        "./dist/business.d.ts"
+      ],
       "*": [
-        "./dist/*",
         "./dist/index.d.ts"
       ]
     }
@@ -52,6 +75,7 @@
     }
   },
   "devDependencies": {
-    "html2canvas-pro": "catalog:"
+    "html2canvas-pro": "catalog:",
+    "unbuild": "catalog:"
   }
 }
