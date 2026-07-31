@@ -28,7 +28,7 @@
   - 依赖集中在 `pnpm-workspace.yaml - catalogs` 统一管理。
   - 完善文档说明。
 - 2025-05-23
-  - 增强脱敏函数（`desensitize`）， 支持邮箱，银行卡号，姓名。
+  - 增强脱敏函数（`desensitize`），支持邮箱、银行卡号、姓名。
   - 完善文档说明。
 
 ## 📌 简介
@@ -49,13 +49,18 @@
 
 ## 📦 安装
 
-使用 npm 安装：
 ```bash
 npm install ui-utils-kit
-```
-使用 yarn 安装：
-```bash
+# 或
 yarn add ui-utils-kit
+# 或
+pnpm add ui-utils-kit
+```
+
+如需使用 `business.captureElementAsImage`（DOM 截图），还需安装可选 peer 依赖：
+
+```bash
+npm install html2canvas-pro
 ```
 
 ---
@@ -109,14 +114,13 @@ import { captureElementAsImage } from "ui-utils-kit/business";
 
 ### 2. 扁平化树形结构
 
-**`tree.treeToArr`** 将树形数据转换为扁平化数组，便于遍历与处理。
+**`tree.treeToArr`** 将树形数据转换为扁平化数组，便于遍历与处理。不修改输入。
 
 - **参数：**
-  - `tree` (`TreeNode`)：包含 `id` 与 `name`、`children`的树形结构数据。
-  - `node` (`TreeNode`)：包含 `id` 与 `pid` 的节点数据。
+  - `data` (`Array<TreeNode>`)：嵌套树结构数据，节点包含 `id` 与可选的 `children`。
 
 - **返回值：**
-  - `Array<TreeNode>`：扁平化后的数组。
+  - `Array<TreeNode>`：扁平化后的新数组，前序排列。每个节点重新计算 `pid`（根节点为 `null`），不包含 `children`；未设置 `check` 的节点默认为 `"0"`（未选中）。
 
 - **示例：**
   ```typescript
@@ -129,13 +133,14 @@ import { captureElementAsImage } from "ui-utils-kit/business";
 
 ### 3. 更新树节点选中状态
 
-**`tree.updateTreeCheckStatus`** 更新树中节点的选中状态（含子节点与父节点联动）。
+**`tree.updateTreeCheckStatus`** 更新嵌套树中节点的选中状态（含子节点与父节点联动）。选中节点的后代全部选中，父节点按子节点状态自动更新为选中 / 半选 / 未选中。会原地修改 `tree`。
 
 - **参数：**
-  - `tree` (`TreeNode`)：包含 `id` 与 `name`、`children`的树形结构数据。
+  - `tree` (`Array<TreeNode>`)：嵌套树结构数据。
+  - `selectedNodes` (`Array<TreeNode>`)：当前选中的节点数组（按 `id` 匹配，其余字段可省略）。
 
 - **返回值：**
-  - `Array<TreeNode>`：更新后的节点数组。
+  - `Array<TreeNode>`：更新后的树（与输入同一引用）。
 
 - **示例：**
   ```typescript
@@ -155,52 +160,97 @@ import { captureElementAsImage } from "ui-utils-kit/business";
   console.log(updatedTree);
   ```
 
-### 4. 查找相关节点
+### 4. 更新扁平树的选中状态
 
-**`tree.searchTreeWithRelations`** 根据关键词查找匹配节点，同时返回相关的父子关系。
+**`tree.updateTreeCheckStatusFlat`** 与 `updateTreeCheckStatus` 行为一致，但输入为扁平数组（节点通过 `pid` 关联）。会原地修改 `tree`。
 
 - **参数：**
-  - `treeArr (TreeNode[])`：树结构的数组，每个节点至少应包含 id, pid, name 属性，表示节点标识、父节点标识及节点名称。
-  - `keywords (string)`：用于匹配节点名称的关键词，支持模糊匹配（即 includes 匹配）。
-  - `mark (boolean)`：是否在匹配的节点上添加 isMatched 属性标记，默认值为 true。
-  -
+  - `tree` (`Array<TreeNode>`)：扁平树结构数组，节点包含 `id` 与 `pid`。
+  - `selectedNodes` (`Array<TreeNode>`)：当前选中的节点数组（按 `id` 匹配）。
+
 - **返回值：**
-  - `Array<TreeNode>`：匹配结果数组，
-  包含： 名称匹配的节点； 匹配节点的所有父节点； 匹配节点的所有子节点。
-  返回顺序为：父节点在前，子节点在后；同一层级节点顺序与原数组一致。。
+  - `Array<TreeNode>`：更新后的扁平数组（与输入同一引用）。
+
+### 5. 查找相关节点
+
+**`tree.searchTreeWithRelations`** 在扁平树数组中按关键词模糊匹配节点 `name`（`includes`），返回匹配节点及其全部祖先与后代。不修改输入。
+
+- **参数：**
+  - `treeArr` (`Array<TreeNode>`)：扁平树结构数组，节点至少包含 `id`、`pid`、`name`。
+  - `keywords` (`string`)：用于匹配节点名称的关键词。
+  - `mark` (`boolean`，可选)：是否在直接匹配的节点副本上添加 `isMatched: true` 标记，默认 `true`。
+
+- **返回值：**
+  - `Array<TreeNode>`：匹配结果数组，包含名称匹配的节点、匹配节点的所有父节点与所有子节点，顺序与原数组一致。
 
 - **示例：**
   ```typescript
   import { searchTreeWithRelations } from 'ui-utils-kit';
 
   const tree = [
-    { id: 1, name: 'Root' },
-    { id: 2, name: 'Child 1' },
+    { id: 1, pid: null, name: 'Root' },
+    { id: 2, pid: 1, name: 'Child 1' },
   ];
 
   const results = searchTreeWithRelations(tree, 'Child 1');
   console.log(results);
   ```
 
+### 6. 关联选择节点
+
+**`tree.selectRelatedNodes`** 从扁平树数组中筛选出选中节点及其全部祖先与后代。不修改输入。
+
+- **参数：**
+  - `treeData` (`Array<TreeNode>`)：扁平树结构数组。
+  - `selectedNodes` (`Array<TreeNode>`)：选中的节点数组（按 `id` 匹配）。
+
+- **返回值：**
+  - `Array<TreeNode>`：筛选结果数组，顺序与原数组一致。
+
+### 7. 移除节点
+
+**`tree.removeNodesFromTree`** 从扁平树数组中移除指定节点及其全部后代。不修改输入。
+
+- **参数：**
+  - `treeArr` (`Array<TreeNode>`)：扁平树结构数组。
+  - `selectedNodes` (`Array<TreeNode>`)：要移除的节点数组（按 `id` 匹配）。
+
+- **返回值：**
+  - `Array<TreeNode>`：移除后的新数组，顺序与原数组一致。
+
+### 8. 合并节点
+
+**`tree.mergeTrees`** 将新节点合并到已有的扁平树数组中，支持乱序输入；重复 ID、孤儿节点和成环节点会被忽略。会原地追加到 `treeArr`。
+
+- **参数：**
+  - `treeArr` (`Array<TreeNode>`)：现有的扁平树结构数组。
+  - `nodes` (`Array<TreeNode>`)：待合并的节点数组。
+
+- **返回值：**
+  - `Array<TreeNode>`：合并后的数组（与 `treeArr` 同一引用）。
+
 ---
 
 ## 🎨 业务函数 (business)
 
-### 1. DOM 转图片(例如生成海报)
+### 1. DOM 转图片（例如生成海报）
 
-**`captureElementAsImage`** 将 DOM 元素转换为图片（canvas），支持自动下载或返回 Blob 格式数据。
-> **⚠️ 注意**
+**`captureElementAsImage`** 将 DOM 元素转换为图片（canvas），支持自动下载或返回 Blob 格式数据。可选 peer 依赖 `html2canvas-pro` 仅在调用本函数时延迟加载。
+
+> **⚠️ 跨域图片注意事项**
 >
-> 如果截图元素中存在图片且图片源未设置允许跨域，那么需要后端提供图片转译服务（ 代码可参考https://github.com/OFreshman/html2canvas-proxy ）
+> 如果截图元素中包含未允许跨域的图片，需要后端提供图片转译服务（实现可参考 [html2canvas-proxy](https://github.com/OFreshman/html2canvas-proxy)）。
 >
->虽然个人提供了 `https://h2c-proxy.netlify.app/api/` 服务（使用的是nitro + netlify)去测试处理跨域图片，但流量有限，谨慎使用！！！另外**配置了proxy
-> 必须设置`useCORS：false`**，这两个属性时互斥的。
+> 作者提供了一个测试用代理 `https://h2c-proxy.netlify.app/api/`（nitro + netlify 部署），流量有限，请勿在生产环境使用。
+>
+> **配置了 `proxy` 时必须设置 `useCORS: false`**，两者互斥：
+>
 > ```javascript
 > captureElementAsImage(element, {
->   proxy: "后端的处理图片服务",
+>   proxy: "https://your-proxy.example.com/api/",
 >   useCORS: false
-> })
->```
+> });
+> ```
 
 - **方法说明：**
 
@@ -224,11 +274,11 @@ import { captureElementAsImage } from "ui-utils-kit/business";
       .catch(err => console.error(err));
     ```
 
->! 小程序的话还是推荐canvas 去绘制，然后再结合 `uni.canvasToTempFilePath` 去转图片，优点是高度自定义。
+> 💡 小程序场景建议直接使用 canvas 绘制，再结合 `uni.canvasToTempFilePath` 转图片，自定义程度更高。
 
 ---
 
-## 🎨 公共通用函数 (common)
+## 🔧 公共通用函数 (common)
 
 ### 1. safeJsonParse<T>(jsonString: string, defaultValue: T): [Error \| null, T]
 
@@ -240,7 +290,7 @@ import { captureElementAsImage } from "ui-utils-kit/business";
 - `defaultValue: T` — 当解析失败时返回的默认值，类型与期待的解析结果相同。
 
 **返回值**
-  `[Error | null, T]` — 一个元组：
+  `[Error | null, T]` — 一个元组：第一个元素为错误对象（解析成功时为 `null`），第二个元素为解析结果（解析失败时为 `defaultValue`）。
 
 - 示例
 ```typescript
@@ -255,7 +305,7 @@ if (err) {
 ```
 
 ### 2. desensitize(value: string, type: "mobile" | "idcard" | "email" | "bankcard" | "name"): string
-**功能描述**：对敏感信息（手机号或身份证号）进行脱敏处理，隐藏中间部分。
+**功能描述**：对手机号、身份证号、邮箱、银行卡号、姓名等敏感信息进行脱敏处理，隐藏中间部分。
 
 **参数**
 - `value: string` — 原始字符串，如手机号或身份证号。
@@ -268,16 +318,16 @@ if (err) {
   - `"name"`：脱敏姓名
 
 **返回值**
-`string` — 脱敏后字符串，如果输入非字符串则返回空字符串。
+`string` — 脱敏后的字符串；输入非字符串时原样返回。
 
 - 示例
 ```typescript
 import { desensitize } from 'ui-utils-kit';
 
 desensitize('13812345678', 'mobile');  // 输出：138****5678
-desensitize('110105199001011234', 'idcard'); // 输出：110105********1234
+desensitize('110105199001011234', 'idcard'); // 输出：110105******1234
 
-desensitize("ethan.yin@openai.com", "email"); // => "e*********@openai.com"
+desensitize("ethan.yin@openai.com", "email"); // => "e********@openai.com"
 desensitize("a@domain.cn", "email"); // => "a@domain.cn"   // 本地部分仅一个字符，无需替换
 
 desensitize("6227001234567890", "bankcard"); // => "**** **** **** 7890"
@@ -315,9 +365,9 @@ desensitize("Al Li", "name"); // 输出: A* L*
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { Mutex } from 'ui-utils-kit'
 
-// 状态变量，无需在 setup 中 return，自动暴露给模板使用
 const isSubmitting = ref(false)
 // 创建一个互斥锁实例
 const submitMutex = new Mutex()
@@ -381,7 +431,7 @@ setTimeout(() => {
 
 ### 5. `createSelfCorrectingCountdown(targetTimestamp: number, interval?: number): SelfCorrectingCountdown`
 
-**功能描述：** 创建一个“零漂移”自校正倒计时管理器。内部同样通过校正机制消除误差，到达目标时间时自动停止，并允许手动停止
+**功能描述：** 创建一个“零漂移”自校正倒计时管理器。内部同样通过校正机制消除误差，到达目标时间时自动停止，并允许手动停止。
 
 **参数**
 - `targetTimestamp: number` — 倒计时结束的目标时间戳（毫秒）。
@@ -431,15 +481,19 @@ const logger = setInterval(() => {
 
 ### `TreeNode` 类型
 ```typescript
-type TreeNode = {
-  id: string | number;
-  pid: string | number | null;
-  name: string;
-  children?: TreeNode[];
-  check?: '0' | '1' | '2';
+type TreeNodeId = string | number;
+
+type TreeNode<TExtra extends object = Record<never, never>> = {
+  id: TreeNodeId;
+  pid?: TreeNodeId | null;
+  name?: string;
+  check?: "0" | "1" | "2"; // "0"：未选中，"1"：半选中，"2"：选中
+  children?: Array<TreeNode<TExtra>>;
   isMatched?: boolean;
-};
+} & TExtra;
 ```
+
+> `TExtra` 用于保留业务扩展字段。例如节点带 `label` 字段时，`TreeNode<{ label: string }>` 可以在不放宽类型的情况下通过类型检查。
 
 ### `CheckStatus` 枚举
 ```typescript
@@ -449,7 +503,7 @@ export const CheckStatus = {
   Checked: "2"
 } as const;
 
-export type CheckStatusType = typeof CheckStatus[keyof typeof CheckStatus];
+export type CheckStatusType = "0" | "1" | "2";
 ```
 
 ---
