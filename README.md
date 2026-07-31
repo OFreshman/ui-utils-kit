@@ -13,7 +13,7 @@
 ---
 ## 📝 changelogs
 ### TodoList
-- `bussiness.captureElementAsImage` 支持 html-to-image 的 选择？
+- `business.captureElementAsImage` 是否增加 html-to-image 可选实现？
 ---
 - 2024-12-06
   - 新增 `tree` 模块，提供树形数据操作的工具函数。
@@ -33,14 +33,14 @@
 
 ## 📌 简介
 
-`ui-utils-kit` 提供两大类常用功能：
+`ui-utils-kit` 提供三类常用功能：
 
 - **树形数据操作**
   构建树形结构、扁平化树、更新选中状态、查找相关节点等，帮助你高效管理和操作树状数据。
 
 - **海报制作**
   将 DOM 元素转换为图片（canvas），支持自动下载或返回 Blob 格式数据。
-  > 针对跨域图片问题，内置 `html2canvas` proxy 解决方案。
+  > 针对跨域图片问题，可传入 `html2canvas` 的 `proxy` 配置。
 
 - **业务工具类函数**
   提供一些常用的业务工具函数，如 JSON 安全解析、敏感信息脱敏等。
@@ -62,21 +62,23 @@ yarn add ui-utils-kit
 
 ## 🚀 使用方式
 
-`ui-utils-kit` 的工具函数目前分为三大类：`tree`、`business`、`common`，支持两种导入方式：
+`ui-utils-kit` 的工具函数分为 `tree`、`business`、`common` 三类，支持根入口和按模块子路径导入：
 
-**方式一：**
-```javascript
-import { tree } from "ui-utils-kit";
-
-const result = tree.buildTree(nodes);
-```
-
-**方式二：**
-```javascript
+```typescript
 import { buildTree } from "ui-utils-kit";
-
-const result = buildTree(nodes);
+// 纯工具场景也可以使用子路径，减少无关模块解析：
+import { safeJsonParse } from "ui-utils-kit/common";
+import { searchTreeWithRelations } from "ui-utils-kit/tree";
+// DOM 截图能力：
+import { captureElementAsImage } from "ui-utils-kit/business";
 ```
+
+### 行为约定
+
+- 树节点 ID 支持 `string | number`，不会进行隐式数字转换。
+- `buildTree`、`mergeTrees` 和勾选状态更新函数会原地修改输入；筛选、搜索和删除函数返回新数组。
+- 扁平化、搜索和关联选择结果保持父节点优先的输入顺序；重复 ID 保留首个节点。
+- `html2canvas-pro` 是可选 peer，仅在调用 DOM 截图能力时延迟加载。
 
 ---
 
@@ -88,7 +90,6 @@ const result = buildTree(nodes);
 
 - **参数：**
   - `nodes` (`Array<TreeNode>`)：包含 `id` 与 `pid` 的节点数据数组。
-  - `preserveChildren` (`boolean`，可选)：是否保留原 `children` 属性。
 
 - **返回值：**
   - `Array<TreeNode>`：构建后的树形结构数据。
@@ -138,12 +139,17 @@ const result = buildTree(nodes);
 
 - **示例：**
   ```typescript
-  import { updateTreeCheckStatus } from 'ui-utils-kit';
+  import { CheckStatus, updateTreeCheckStatus } from 'ui-utils-kit';
 
   const tree = [
-    { id: 1, name: 'Root', check: 'Unchecked', children: [{ id: 2, name: 'Child 1', check: 'Unchecked' }] }
+    {
+      id: 1,
+      name: 'Root',
+      check: CheckStatus.Unchecked,
+      children: [{ id: 2, name: 'Child 1', check: CheckStatus.Unchecked }]
+    }
   ];
-  const selectedNodes = [{ id: 2, name: 'Child 1', check: 'Checked' }];
+  const selectedNodes = [{ id: 2 }];
 
   const updatedTree = updateTreeCheckStatus(tree, selectedNodes);
   console.log(updatedTree);
@@ -200,7 +206,7 @@ const result = buildTree(nodes);
 
   - **参数：**
     - `element` (`HTMLElement | null`)：目标 DOM 元素。
-    - `canvasConfig` (`Partial<Html2canvasOptions>`，可选)：配置项，如 `scale`、`backgroundColor` 等。
+    - `canvasConfig` (`CaptureCanvasOptions`，可选)：配置项，如 `scale`、`backgroundColor` 等。
     - `outputOptions` (`OutputOptions`，可选)：输出设置，默认为自动下载图片。
 
   - **示例：**
@@ -430,19 +436,20 @@ type TreeNode = {
   pid: string | number | null;
   name: string;
   children?: TreeNode[];
-  check?: 'Checked' | 'Unchecked' | 'HalfChecked';
+  check?: '0' | '1' | '2';
+  isMatched?: boolean;
 };
 ```
 
 ### `CheckStatus` 枚举
 ```typescript
-export const CheckStatusMap = {
+export const CheckStatus = {
   Unchecked: "0",
   HalfChecked: "1",
   Checked: "2"
 } as const;
 
-export type CheckStatus = typeof CheckStatusMap[keyof typeof CheckStatusMap];
+export type CheckStatusType = typeof CheckStatus[keyof typeof CheckStatus];
 ```
 
 ---
