@@ -195,7 +195,7 @@ function assertValidInterval(interval: number): void {
 }
 
 /**
- * 创建零漂移的自校正实时时钟
+ * 创建可减少累计漂移的自校正实时时钟
  * @param interval 更新间隔（毫秒），默认 1000
  */
 export function createSelfCorrectingClock(
@@ -225,7 +225,7 @@ export function createSelfCorrectingClock(
 
 
 /**
- * 创建零漂移的自校正倒计时器
+ * 创建可减少累计漂移的自校正倒计时器
  * @param targetTimestamp 目标时间戳（毫秒）
  * @param interval 更新间隔（毫秒），默认值为 1000
  * @returns 自校正倒计时管理器实例，包含获取剩余时间和停止定时器的方法

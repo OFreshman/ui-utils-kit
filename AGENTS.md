@@ -15,17 +15,16 @@
 ```bash
 pnpm install
 pnpm play
-pnpm lint
-pnpm lint:type
-pnpm test:run
-pnpm build
+pnpm check
 pnpm docs:sync
+pnpm docs:check
+pnpm package:check
 ```
 
 ## 修改约束
 
 - 使用 TypeScript、双引号、2 空格缩进和 LF 行尾，遵循现有 ESLint 配置。
-- 新增公共 API 时，同步更新入口、类型、测试和根 README，随后运行 `pnpm docs:sync`。
+- 新增公共 API 时，同步更新入口、类型、测试和根 README，随后运行 `pnpm docs:sync`；CI 会通过 `pnpm docs:check` 校验两份 README 是否一致。
 - 树节点 ID 支持 `string | number`；树操作的顺序、原地修改等行为应保持明确并由测试覆盖。
 - 浏览器相关逻辑只放在 `business`；纯工具函数不要引入 DOM 或 `html2canvas-pro`。
 - Playground 保持 Vue 3 Composition API 与 `<script setup lang="ts">`，只用于最小可复现场景。
@@ -34,9 +33,6 @@ pnpm docs:sync
 ## 交付前验证
 
 ```bash
-pnpm lint
-pnpm lint:type
-pnpm test:run
-pnpm build
+pnpm check
 git diff --check
 ```

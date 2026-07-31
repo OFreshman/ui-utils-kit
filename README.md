@@ -1,509 +1,351 @@
+<div align="center">
 
 # ui-utils-kit
 
-**ui-utils-kit** 是一个偏业务的前端工具函数库。
+面向前端业务场景的 TypeScript 工具库，提供树数据处理、通用异步工具和 DOM 截图能力。
 
 [![GitHub Stars](https://img.shields.io/github/stars/OFreshman/ui-utils-kit?style=flat&colorA=080f12&colorB=1fa669&logo=GitHub)](https://github.com/OFreshman/ui-utils-kit)
 [![NPM Version](https://img.shields.io/npm/v/ui-utils-kit?style=flat&colorA=080f12&colorB=1fa669)](https://npmjs.com/package/ui-utils-kit)
 [![NPM Downloads](https://img.shields.io/npm/dm/ui-utils-kit?style=flat&colorA=080f12&colorB=1fa669)](https://npmjs.com/package/ui-utils-kit)
 [![Bundle Size](https://img.shields.io/bundlephobia/minzip/ui-utils-kit?style=flat&colorA=080f12&colorB=1fa669&label=minzip)](https://bundlephobia.com/result?p=ui-utils-kit)
-[![JSDocs](https://img.shields.io/badge/jsdocs-reference-080f12?style=flat&colorA=080f12&colorB=1fa669)](https://www.jsdocs.io/package/ui-utils-kit)
 [![License](https://img.shields.io/github/license/OFreshman/ui-utils-kit.svg?style=flat&colorA=080f12&colorB=1fa669)](https://github.com/OFreshman/ui-utils-kit/blob/main/LICENSE)
 
----
-## 📝 changelogs
-### TodoList
-- `business.captureElementAsImage` 是否增加 html-to-image 可选实现？
----
-- 2024-12-06
-  - 新增 `tree` 模块，提供树形数据操作的工具函数。
-  - 新增 `business` 模块，提供 DOM 转图片的工具函数。
-  - 新增 `common` 模块，提供一些常用的业务工具函数。
-  - 完善文档说明。
-- 2025-04-24
-  - 新增 `common.createSelfCorrectingClock` 创建零漂移的自校正实时时钟。
-  - 新增 `common.createSelfCorrectingCountdown` 创建零漂移的自校正倒计时器。
-  - 完善文档说明。
-- 2025-05-08
-  - 依赖集中在 `pnpm-workspace.yaml - catalogs` 统一管理。
-  - 完善文档说明。
-- 2025-05-23
-  - 增强脱敏函数（`desensitize`），支持邮箱、银行卡号、姓名。
-  - 完善文档说明。
-- 2026-07-31
-  - 优化 `buildTree`、`mergeTrees` 与 `Mutex` 等深层或大批量场景的处理性能。
-  - 树选择类 API 支持直接传入节点 ID；`Mutex` 新增自动释放锁的 `runExclusive`。
-  - DOM 截图支持不下载时单独返回 Data URL，并补充非浏览器下载边界提示。
-  - CI 增加文档同步、发布包导出检查与跨平台验证；发布流程增加版本和标签一致性检查。
+</div>
 
-## 📌 简介
+## 特性
 
-`ui-utils-kit` 提供三类常用功能：
+- **树数据处理**：构建、扁平化、勾选联动、搜索、删除、合并和关联选择。
+- **类型安全**：使用 TypeScript 编写，树节点 ID 同时支持 `string` 和 `number`。
+- **按需导入**：提供根入口及 `common`、`tree`、`business` 子路径。
+- **多模块格式**：发布 ESM、CommonJS 和类型声明。
+- **清晰的运行边界**：纯工具不依赖 DOM；截图能力单独放在 `business`，并延迟加载可选 peer。
 
-- **树形数据操作**
-  构建树形结构、扁平化树、更新选中状态、查找相关节点等，帮助你高效管理和操作树状数据。
+> [!IMPORTANT]
+> `common` 和 `tree` 可用于 Node.js 或浏览器环境。`captureElementAsImage` 需要 DOM、Canvas 和浏览器相关能力，仅导入 `business` 模块不会立即加载 `html2canvas-pro`。
 
-- **海报制作**
-  将 DOM 元素转换为图片（canvas），支持自动下载或返回 Blob 格式数据。
-  > 针对跨域图片问题，可传入 `html2canvas` 的 `proxy` 配置。
+## 安装
 
-- **业务工具类函数**
-  提供一些常用的业务工具函数，如 JSON 安全解析、敏感信息脱敏等。
+```bash
+pnpm add ui-utils-kit
+```
 
----
-
-## 📦 安装
+也可以使用 npm 或 Yarn：
 
 ```bash
 npm install ui-utils-kit
 # 或
+
 yarn add ui-utils-kit
-# 或
-pnpm add ui-utils-kit
 ```
 
-如需使用 `business.captureElementAsImage`（DOM 截图），还需安装可选 peer 依赖：
+只有使用 DOM 截图功能时，才需要安装可选 peer：
 
 ```bash
-npm install html2canvas-pro
+pnpm add html2canvas-pro
 ```
 
----
+## 导入方式
 
-## 🚀 使用方式
+推荐从子路径按需导入：
 
-`ui-utils-kit` 的工具函数分为 `tree`、`business`、`common` 三类，支持根入口和按模块子路径导入：
-
-```typescript
-import { buildTree } from "ui-utils-kit";
-// 纯工具场景也可以使用子路径，减少无关模块解析：
-import { safeJsonParse } from "ui-utils-kit/common";
-import { searchTreeWithRelations } from "ui-utils-kit/tree";
-// DOM 截图能力：
+```ts
+import { Mutex } from "ui-utils-kit/common";
+import { buildTree, CheckStatus } from "ui-utils-kit/tree";
 import { captureElementAsImage } from "ui-utils-kit/business";
 ```
 
-### 行为约定
+也可以从根入口导入单个 API 或命名空间：
 
-- 树节点 ID 支持 `string | number`，不会进行隐式数字转换。
-- 勾选、关联选择和移除 API 均可传入节点对象或节点 ID，例如 `[node]`、`["node-id"]`。
-- `buildTree`、`mergeTrees` 和勾选状态更新函数会原地修改输入；筛选、搜索和删除函数返回新数组。
-- 扁平化、搜索和关联选择结果保持父节点优先的输入顺序；重复 ID 保留首个节点。
-- `html2canvas-pro` 是可选 peer，仅在调用 DOM 截图能力时延迟加载。
-
----
-
-## 🔹 树形数据操作 (tree)
-
-### 1. 构建树形结构
-
-**`tree.buildTree`** 根据节点数据构建树形结构。
-
-- **参数：**
-  - `nodes` (`Array<TreeNode>`)：包含 `id` 与 `pid` 的节点数据数组。
-
-- **返回值：**
-  - `Array<TreeNode>`：构建后的树形结构数据。
-
-- **示例：**
-  ```typescript
-  import { buildTree } from 'ui-utils-kit';
-
-  const nodes = [
-    { id: 1, pid: null, name: 'Root' },
-    { id: 2, pid: 1, name: 'Child 1' },
-  ];
-
-  const tree = buildTree(nodes);
-  console.log(tree);
-  ```
-
-### 2. 扁平化树形结构
-
-**`tree.treeToArr`** 将树形数据转换为扁平化数组，便于遍历与处理。不修改输入。
-
-- **参数：**
-  - `data` (`Array<TreeNode>`)：嵌套树结构数据，节点包含 `id` 与可选的 `children`。
-
-- **返回值：**
-  - `Array<TreeNode>`：扁平化后的新数组，前序排列。每个节点重新计算 `pid`（根节点为 `null`），不包含 `children`；未设置 `check` 的节点默认为 `"0"`（未选中）。
-
-- **示例：**
-  ```typescript
-  import { treeToArr } from 'ui-utils-kit';
-
-  const tree = [{ id: 1, name: 'Root', children: [{ id: 2, name: 'Child 1' }] }];
-  const flatArray = treeToArr(tree);
-  console.log(flatArray);
-  ```
-
-### 3. 更新树节点选中状态
-
-**`tree.updateTreeCheckStatus`** 更新嵌套树中节点的选中状态（含子节点与父节点联动）。选中节点的后代全部选中，父节点按子节点状态自动更新为选中 / 半选 / 未选中。会原地修改 `tree`。
-
-- **参数：**
-  - `tree` (`Array<TreeNode>`)：嵌套树结构数据。
-  - `selectedNodes` (`ReadonlyArray<TreeNode | TreeNodeId>`)：当前选中的节点或节点 ID。
-
-- **返回值：**
-  - `Array<TreeNode>`：更新后的树（与输入同一引用）。
-
-- **示例：**
-  ```typescript
-  import { CheckStatus, updateTreeCheckStatus } from 'ui-utils-kit';
-
-  const tree = [
-    {
-      id: 1,
-      name: 'Root',
-      check: CheckStatus.Unchecked,
-      children: [{ id: 2, name: 'Child 1', check: CheckStatus.Unchecked }]
-    }
-  ];
-  const selectedNodes = [2];
-
-  const updatedTree = updateTreeCheckStatus(tree, selectedNodes);
-  console.log(updatedTree);
-  ```
-
-### 4. 更新扁平树的选中状态
-
-**`tree.updateTreeCheckStatusFlat`** 与 `updateTreeCheckStatus` 行为一致，但输入为扁平数组（节点通过 `pid` 关联）。会原地修改 `tree`。
-
-- **参数：**
-  - `tree` (`Array<TreeNode>`)：扁平树结构数组，节点包含 `id` 与 `pid`。
-  - `selectedNodes` (`ReadonlyArray<TreeNode | TreeNodeId>`)：当前选中的节点或节点 ID。
-
-- **返回值：**
-  - `Array<TreeNode>`：更新后的扁平数组（与输入同一引用）。
-
-### 5. 查找相关节点
-
-**`tree.searchTreeWithRelations`** 在扁平树数组中按关键词模糊匹配节点 `name`（`includes`），返回匹配节点及其全部祖先与后代。不修改输入。
-
-- **参数：**
-  - `treeArr` (`Array<TreeNode>`)：扁平树结构数组，节点至少包含 `id`、`pid`、`name`。
-  - `keywords` (`string`)：用于匹配节点名称的关键词。
-  - `mark` (`boolean`，可选)：是否在直接匹配的节点副本上添加 `isMatched: true` 标记，默认 `true`。
-
-- **返回值：**
-  - `Array<TreeNode>`：匹配结果数组，包含名称匹配的节点、匹配节点的所有父节点与所有子节点，顺序与原数组一致。
-
-- **示例：**
-  ```typescript
-  import { searchTreeWithRelations } from 'ui-utils-kit';
-
-  const tree = [
-    { id: 1, pid: null, name: 'Root' },
-    { id: 2, pid: 1, name: 'Child 1' },
-  ];
-
-  const results = searchTreeWithRelations(tree, 'Child 1');
-  console.log(results);
-  ```
-
-### 6. 关联选择节点
-
-**`tree.selectRelatedNodes`** 从扁平树数组中筛选出选中节点及其全部祖先与后代。不修改输入。
-
-- **参数：**
-  - `treeData` (`Array<TreeNode>`)：扁平树结构数组。
-  - `selectedNodes` (`ReadonlyArray<TreeNode | TreeNodeId>`)：选中的节点或节点 ID。
-
-- **返回值：**
-  - `Array<TreeNode>`：筛选结果数组，顺序与原数组一致。
-
-### 7. 移除节点
-
-**`tree.removeNodesFromTree`** 从扁平树数组中移除指定节点及其全部后代。不修改输入。
-
-- **参数：**
-  - `treeArr` (`Array<TreeNode>`)：扁平树结构数组。
-  - `selectedNodes` (`ReadonlyArray<TreeNode | TreeNodeId>`)：要移除的节点或节点 ID。
-
-- **返回值：**
-  - `Array<TreeNode>`：移除后的新数组，顺序与原数组一致。
-
-### 8. 合并节点
-
-**`tree.mergeTrees`** 将新节点合并到已有的扁平树数组中，支持乱序输入；重复 ID、孤儿节点和成环节点会被忽略。会原地追加到 `treeArr`。
-
-- **参数：**
-  - `treeArr` (`Array<TreeNode>`)：现有的扁平树结构数组。
-  - `nodes` (`Array<TreeNode>`)：待合并的节点数组。
-
-- **返回值：**
-  - `Array<TreeNode>`：合并后的数组（与 `treeArr` 同一引用）。
-
----
-
-## 🎨 业务函数 (business)
-
-### 1. DOM 转图片（例如生成海报）
-
-**`captureElementAsImage`** 将 DOM 元素转换为图片（canvas），支持自动下载、返回 Blob 或 Data URL。可选 peer 依赖 `html2canvas-pro` 仅在调用本函数时延迟加载。
-
-> 自动下载依赖浏览器 `document`。SSR、Node.js 或 Worker 环境应设置 `download: false`，并按需启用 `blob` / `dataUrl`。
-
-> **⚠️ 跨域图片注意事项**
->
-> 如果截图元素中包含未允许跨域的图片，需要后端提供图片转译服务（实现可参考 [html2canvas-proxy](https://github.com/OFreshman/html2canvas-proxy)）。
->
-> 作者提供了一个测试用代理 `https://h2c-proxy.netlify.app/api/`（nitro + netlify 部署），流量有限，请勿在生产环境使用。
->
-> **配置了 `proxy` 时必须设置 `useCORS: false`**，两者互斥：
->
-> ```javascript
-> captureElementAsImage(element, {
->   proxy: "https://your-proxy.example.com/api/",
->   useCORS: false
-> });
-> ```
-
-- **方法说明：**
-
-  - **参数：**
-    - `element` (`HTMLElement | null`)：目标 DOM 元素。
-    - `canvasConfig` (`CaptureCanvasOptions`，可选)：配置项，如 `scale`、`backgroundColor` 等。
-    - `outputOptions` (`OutputOptions`，可选)：输出设置，默认为自动下载图片；可通过 `blob: true` 或 `dataUrl: true` 请求对应数据。
-
-  - **示例：**
-    ```typescript
-    import { captureElementAsImage } from 'ui-utils-kit';
-
-    const element = document.getElementById('capture-area');
-
-    captureElementAsImage(element, { scale: 2 }, { download: false, dataUrl: true })
-      .then(({ canvas, dataUrl, blob }) => {
-        console.log('Canvas:', canvas);
-        console.log('Data URL:', dataUrl);
-        console.log('Blob:', blob);
-      })
-      .catch(err => console.error(err));
-    ```
-
-> 💡 小程序场景建议直接使用 canvas 绘制，再结合 `uni.canvasToTempFilePath` 转图片，自定义程度更高。
-
----
-
-## 🔧 公共通用函数 (common)
-
-### 1. safeJsonParse<T>(jsonString: string, defaultValue: T): [Error \| null, T]
-
-**功能描述：** 安全地解析 JSON 字符串，如果解析出错则返回默认值和错误对象。
-
-**参数**
-- `jsonString: string` — 要解析的 JSON 格式字符串。
-
-- `defaultValue: T` — 当解析失败时返回的默认值，类型与期待的解析结果相同。
-
-**返回值**
-  `[Error | null, T]` — 一个元组：第一个元素为错误对象（解析成功时为 `null`），第二个元素为解析结果（解析失败时为 `defaultValue`）。
-
-- 示例
-```typescript
-import { safeJsonParse } from 'ui-utils-kit';
-
-const [err, data] = safeJsonParse('{"foo": 42}', { foo: 0 });
-if (err) {
-  // 处理解析错误
-} else {
-  console.log(data.foo); // 42
-}
-```
-
-### 2. desensitize(value: string, type: "mobile" | "idcard" | "email" | "bankcard" | "name"): string
-**功能描述**：对手机号、身份证号、邮箱、银行卡号、姓名等敏感信息进行脱敏处理，隐藏中间部分。
-
-**参数**
-- `value: string` — 原始字符串，如手机号或身份证号。
-- `type: "mobile" | "idcard" | "email" | "bankcard" | "name"`
-  - 默认保留首尾，中间脱敏部分
-  - `"mobile"`：脱敏手机号
-  - `"idcard"`：脱敏身份证号
-  - `"email"`：脱敏电子邮箱
-  - `"bankcard"`：脱敏银行卡号
-  - `"name"`：脱敏姓名
-
-**返回值**
-`string` — 脱敏后的字符串；输入非字符串时原样返回。
-
-- 示例
-```typescript
-import { desensitize } from 'ui-utils-kit';
-
-desensitize('13812345678', 'mobile');  // 输出：138****5678
-desensitize('110105199001011234', 'idcard'); // 输出：110105******1234
-
-desensitize("ethan.yin@openai.com", "email"); // => "e********@openai.com"
-desensitize("a@domain.cn", "email"); // => "a@domain.cn"   // 本地部分仅一个字符，无需替换
-
-desensitize("6227001234567890", "bankcard"); // => "**** **** **** 7890"
-desensitize("6227 0012 3456 7890", "bankcard"); // => "**** **** **** 7890"
-
-desensitize("张三", "name"); // => "张*"
-desensitize("张三丰", "name"); // => "张*丰"
-
-// 英文名（按单词脱敏）
-//   - “John Doe” => “J**n D*e”
-//   - “Al Li”   => “A* L*”
-desensitize("John Doe", "name"); // 输出: J**n D*e
-desensitize("Al Li", "name"); // 输出: A* L*
-
-```
-
-### 3. Mutex 类
-功能描述：模拟互斥锁机制，用于控制异步操作对共享资源的访问，确保同一时刻只有一个操作进入临界区。优先使用 `runExclusive(task)`，它会在任务完成或抛错后自动释放锁；需要跨多个调用手动控制时再使用 `lock()` / `unlock()`。
-> ##### 以下是一些应用场景
-> - 防止按钮重复点击：避免用户多次点击同一按钮导致重复网络请求或状态混乱。
-> - 强制 API 调用顺序：确保一组异步接口按预期顺序依次执行，防止乱序带来的逻辑错误。
-> - 多标签页 localStorage 访问：在多个浏览器标签或窗口同时操作同一 localStorage 时，避免数据竞争和丢失。
-> - 分片上传（Chunked Upload）：在大文件上传时，按顺序上传每个分片，确保断点续传或失败重试时不会错乱。
-> - Web Worker 任务同步：在主线程与 Worker 线程之间同步访问共享内存（如 SharedArrayBuffer ）时，保证原子性。
-
-- 示例
-
-```vue
-<template>
-  <view>
-    <button @click="onSubmit" :disabled="isSubmitting">
-      {{ isSubmitting ? '提交中...' : '提交' }}
-    </button>
-  </view>
-</template>
-
-<script setup lang="ts">
-import { ref } from 'vue'
-import { Mutex } from 'ui-utils-kit'
-
-const isSubmitting = ref(false)
-// 创建一个互斥锁实例
-const submitMutex = new Mutex()
-
-// 点击处理函数
-const onSubmit = async () => {
-  await submitMutex.runExclusive(async () => {
-    isSubmitting.value = true
-    try {
-      await new Promise<void>(resolve => setTimeout(resolve, 1500))
-      uni.showToast({ title: '提交成功' })
-    } finally {
-      isSubmitting.value = false
-    }
-  })
-}
-</script>
-```
-
-### 4. `createSelfCorrectingClock(interval?: number): SelfCorrectingClock`
-
-**功能描述：**
-创建一个“零漂移”（self-correcting）实时时钟管理器。该管理器内部通过动态调节 `setTimeout` 延迟来消除长时间运行中的累积误差，并在浏览器标签切换或后台恢复后依然保持准确。
-
-**参数**
-- `interval?: number` — 更新间隔（毫秒），可选，默认值为 `1000`。
-
-**返回值**
-`SelfCorrectingClock` — 一个对象，包含：
 ```ts
-interface SelfCorrectingClock {
-  /** 获取最新的当前时间戳（毫秒） */
-  getCurrentTime(): number;
-  /** 停止内部定时器，释放资源 */
-  stop(): void;
+import { buildTree, common, tree } from "ui-utils-kit";
+
+buildTree([]);
+common.safeJsonParse("{}", {});
+tree.selectRelatedNodes([], []);
+```
+
+可用导出路径：
+
+| 导出路径 | 内容 | 运行环境 |
+| --- | --- | --- |
+| `ui-utils-kit` | 全部 API 与 `common`、`tree`、`business` 命名空间 | 取决于实际调用的 API |
+| `ui-utils-kit/common` | JSON、脱敏、互斥锁、自校正计时工具 | Node.js / 浏览器 |
+| `ui-utils-kit/tree` | 树数据操作和相关类型 | Node.js / 浏览器 |
+| `ui-utils-kit/business` | DOM 截图 | 浏览器 DOM 环境 |
+
+## 快速开始
+
+```ts
+import {
+  buildTree,
+  CheckStatus,
+  treeToArr,
+  updateTreeCheckStatus
+} from "ui-utils-kit/tree";
+import type { TreeNode } from "ui-utils-kit/tree";
+
+type MenuExtra = {
+  path: string;
+};
+
+const nodes: Array<TreeNode<MenuExtra>> = [
+  { id: 1, pid: null, name: "系统管理", path: "/system" },
+  { id: 2, pid: 1, name: "用户管理", path: "/system/users" }
+];
+
+const tree = buildTree(nodes);
+updateTreeCheckStatus(tree, [2]);
+
+console.log(tree[0]?.check === CheckStatus.Checked); // true
+console.log(treeToArr(tree));
+```
+
+## Tree API
+
+### API 一览
+
+| API | 作用 | 是否修改输入 |
+| --- | --- | --- |
+| `buildTree(nodes)` | 将扁平数组构建为嵌套树 | **是**，重置首个唯一节点的 `children` |
+| `treeToArr(tree)` | 以前序遍历将嵌套树转换为扁平数组 | 否，返回不含 `children` 的新节点对象 |
+| `updateTreeCheckStatus(tree, selectedNodes)` | 更新嵌套树的父子勾选状态 | **是**，更新节点 `check` |
+| `updateTreeCheckStatusFlat(tree, selectedNodes)` | 更新扁平树的父子勾选状态 | **是**，更新节点 `check` |
+| `searchTreeWithRelations(tree, keywords, mark?)` | 返回直接匹配节点及其祖先和后代 | 不修改原数组；开启标记时复制直接匹配节点 |
+| `removeNodesFromTree(tree, selectedNodes)` | 删除选中节点及其全部后代 | 否，返回过滤后的新数组 |
+| `mergeTrees(tree, nodes)` | 将有效的新节点追加到扁平树 | **是**，原地追加到 `tree` |
+| `selectRelatedNodes(tree, selectedNodes)` | 返回选中节点及其祖先和后代 | 否，返回保持输入顺序的新数组 |
+
+选择类参数 `selectedNodes` 同时接受节点 ID 和完整节点对象：
+
+```ts
+selectRelatedNodes(nodes, [2, { id: 3, pid: 1 }]);
+```
+
+### 构建与扁平化
+
+```ts
+import { buildTree, treeToArr } from "ui-utils-kit/tree";
+
+const flatNodes = [
+  { id: "root", pid: null, name: "根节点" },
+  { id: "child", pid: "root", name: "子节点" }
+];
+
+const nestedTree = buildTree(flatNodes);
+const normalizedFlatNodes = treeToArr(nestedTree);
+```
+
+行为约定：
+
+- `buildTree` 将 `pid` 为 `null` 或 `undefined` 的节点视为根节点。
+- `buildTree` 遇到重复 ID 时保留第一个节点；孤儿节点和成环节点不会进入结果。
+- `buildTree` 沿用原有可变 API，会把首个唯一输入节点的 `children` 重置为新数组。
+- `treeToArr` 使用前序遍历，保持父节点和兄弟节点的顺序，不修改输入树。
+- `treeToArr` 会重新计算 `pid`，将根节点 `pid` 统一为 `null`，并为缺少状态的节点补上 `CheckStatus.Unchecked`。
+- `treeToArr` 会跳过已经访问过的同一节点对象，避免循环引用导致无限遍历。
+
+### 勾选联动
+
+```ts
+import {
+  updateTreeCheckStatus,
+  updateTreeCheckStatusFlat
+} from "ui-utils-kit/tree";
+
+updateTreeCheckStatus(nestedTree, ["child"]);
+updateTreeCheckStatusFlat(flatNodes, ["child"]);
+```
+
+两个 API 都会先清空历史勾选状态，再执行以下规则：
+
+1. 选中节点及其全部后代设为 `Checked`。
+2. 全部直接子节点选中时，父节点设为 `Checked`。
+3. 子节点状态不一致时，父节点设为 `HalfChecked`。
+4. 全部直接子节点未选中时，父节点设为 `Unchecked`。
+
+### 搜索、删除与关联选择
+
+```ts
+import {
+  removeNodesFromTree,
+  searchTreeWithRelations,
+  selectRelatedNodes
+} from "ui-utils-kit/tree";
+
+const searchResult = searchTreeWithRelations(flatNodes, "用户");
+const relatedNodes = selectRelatedNodes(flatNodes, ["child"]);
+const remainingNodes = removeNodesFromTree(flatNodes, ["child"]);
+```
+
+`searchTreeWithRelations` 使用区分大小写的 `String.prototype.includes` 匹配 `name`：
+
+- 返回直接匹配节点、全部祖先和全部后代，并保持输入数组顺序。
+- `mark` 默认为 `true`，此时直接匹配节点会以浅拷贝形式增加 `isMatched: true`。
+- 空字符串会匹配所有节点；如需“空关键词不搜索”，请在调用前自行判断。
+
+### 合并扁平树
+
+```ts
+import { mergeTrees } from "ui-utils-kit/tree";
+
+const target = [{ id: 1, pid: null, name: "根节点" }];
+
+mergeTrees(target, [
+  { id: 3, pid: 2, name: "孙节点" },
+  { id: 2, pid: 1, name: "子节点" }
+]);
+```
+
+`mergeTrees` 支持待合并节点乱序，并确保父节点先于依赖它的子节点加入。已存在 ID、待合并列表中的重复 ID、孤儿节点和成环节点会被忽略；同一批重复 ID 保留第一个节点。
+
+## Common API
+
+### `safeJsonParse`
+
+安全解析 JSON，返回 `[error, value]`，避免把解析异常作为控制流抛出。
+
+```ts
+import { safeJsonParse } from "ui-utils-kit/common";
+
+const [error, value] = safeJsonParse<{ theme: string }>(
+  localStorage.getItem("settings") ?? "",
+  { theme: "light" }
+);
+
+if (error) {
+  console.warn("配置解析失败，已使用默认值", error);
 }
 ```
-- 示例
-```typescript
-import { createSelfCorrectingClock } from 'ui-utils-kit';
 
-// 创建一个每秒更新一次的自校正时钟
+### `desensitize`
+
+支持 `mobile`、`idcard`、`email`、`bankcard` 和 `name` 五种脱敏类型。
+
+```ts
+import { desensitize } from "ui-utils-kit/common";
+
+desensitize("13812345678", "mobile"); // "138****5678"
+desensitize("user@example.com", "email"); // "u***@example.com"
+desensitize("张三", "name"); // "张*"
+```
+
+不符合对应格式的值通常会保持原样；银行卡号会先移除空格，再以每四位一组格式化。
+
+### `Mutex`
+
+`Mutex` 用于同一个 JavaScript 运行上下文内的异步任务串行化。推荐使用 `runExclusive`，它会在任务完成或抛错后自动释放锁：
+
+```ts
+import { Mutex } from "ui-utils-kit/common";
+
+const saveMutex = new Mutex();
+
+async function save(): Promise<void> {
+  await saveMutex.runExclusive(async () => {
+    await persistChanges();
+  });
+}
+```
+
+需要手动控制锁时，必须在 `finally` 中释放：
+
+```ts
+await saveMutex.lock();
+try {
+  await persistChanges();
+} finally {
+  saveMutex.unlock();
+}
+```
+
+可用方法：
+
+| 方法 | 说明 |
+| --- | --- |
+| `lock()` | 获取锁；已锁定时按先进先出顺序等待 |
+| `unlock()` | 释放锁，或把执行权交给下一位等待者 |
+| `isLocked()` | 返回当前锁状态 |
+| `queueLength()` | 返回等待获取锁的任务数量 |
+| `runExclusive(task)` | 在锁内执行同步或异步任务并自动释放 |
+
+> [!NOTE]
+> `Mutex` 只协调共享同一个实例的任务，不能替代跨标签页、Web Worker、进程或分布式锁。
+
+### 自校正时钟与倒计时
+
+```ts
+import {
+  createSelfCorrectingClock,
+  createSelfCorrectingCountdown
+} from "ui-utils-kit/common";
+
 const clock = createSelfCorrectingClock(1000);
-// 每 5 秒读取并打印一次当前时间戳
-const logger = setInterval(() => {
-  console.log('当前时间戳：', clock.getCurrentTime());
-}, 5000);
+console.log(clock.getCurrentTime());
+clock.stop();
 
-// …需要停止时，调用 stop() 并清理外部 logger
-setTimeout(() => {
-  clock.stop();
-  clearInterval(logger);
-  console.log('时钟已停止');
-}, 30_000);
+const countdown = createSelfCorrectingCountdown(Date.now() + 10_000, 1000);
+console.log(countdown.getRemainingTime());
+countdown.stop();
 ```
 
-### 5. `createSelfCorrectingCountdown(targetTimestamp: number, interval?: number): SelfCorrectingCountdown`
+| API | 返回方法 | 说明 |
+| --- | --- | --- |
+| `createSelfCorrectingClock(interval = 1000)` | `getCurrentTime()`、`stop()` | 根据实际触发时间动态修正下一次延迟，减少累计漂移 |
+| `createSelfCorrectingCountdown(targetTimestamp, interval = 1000)` | `getRemainingTime()`、`stop()` | 按目标时间戳重新计算剩余时间，到达目标后停止调度 |
 
-**功能描述：** 创建一个“零漂移”自校正倒计时管理器。内部同样通过校正机制消除误差，到达目标时间时自动停止，并允许手动停止。
+`interval` 必须是大于 `0` 的有限数字，`targetTimestamp` 也必须是有限数字，否则会抛出 `RangeError`。自校正可以减少定时器的累计误差，但事件循环阻塞、浏览器后台节流等仍可能推迟单次更新。
 
-**参数**
-- `targetTimestamp: number` — 倒计时结束的目标时间戳（毫秒）。
+## Business API
 
-- `interval?: number` — 更新间隔（毫秒），可选，默认值为 1000。
+### `captureElementAsImage`
 
-**返回值**
-`SelfCorrectingCountdown` — 一个对象，包含：
+将 DOM 元素渲染为 Canvas，并按需自动下载、返回 Data URL 或 Blob。
+
 ```ts
-interface SelfCorrectingCountdown {
-  /** 获取最新的剩余时间（毫秒） */
-  getRemainingTime(): number;
-  /** 停止内部定时器，释放资源 */
-  stop(): void;
-}
-```
-- 示例
-```typescript
-import { createSelfCorrectingCountdown } from 'ui-utils-kit';
+import { captureElementAsImage } from "ui-utils-kit/business";
 
-// 目标时间为当前时间后 10 秒
-const target = Date.now() + 10_000;
-const countdown = createSelfCorrectingCountdown(target, 1000);
-
-// 每秒读取并打印一次剩余时间
-const logger = setInterval(() => {
-  const left = countdown.getRemainingTime();
-  console.log('剩余时间（毫秒）：', left);
-  if (left === 0) {
-    clearInterval(logger);
-    console.log('倒计时结束');
+const element = document.querySelector<HTMLElement>("#poster");
+const result = await captureElementAsImage(
+  element,
+  {
+    scale: 2,
+    backgroundColor: "#ffffff",
+    useCORS: true
+  },
+  {
+    download: false,
+    dataUrl: true,
+    blob: true
   }
-}, 1000);
+);
 
-// 如需提前取消倒计时
-// setTimeout(() => {
-//   countdown.stop();
-//   clearInterval(logger);
-//   console.log('倒计时已手动停止');
-// }, 5000);
-
+console.log(result.canvas, result.dataUrl, result.blob);
 ```
 
----
+输出选项：
 
-## 📜 类型定义
+| 选项 | 默认值 | 说明 |
+| --- | --- | --- |
+| `download` | `true` | 是否创建临时链接并自动下载 PNG |
+| `downloadName` | `"下载图片"` | 下载文件名，不含 `.png` 扩展名 |
+| `dataUrl` | `false` | 是否返回 PNG Data URL；下载开启时也会生成 |
+| `blob` | `false` | 是否通过 `canvas.toBlob` 返回 PNG Blob |
 
-### `TreeNode` 类型
-```typescript
-type TreeNodeId = string | number;
+成功返回时，结果始终包含非空的 `canvas`。`dataUrl` 仅在启用下载或设置 `dataUrl: true` 时非空，`blob` 仅在设置 `blob: true` 时非空。
 
-type TreeNode<TExtra extends object = Record<never, never>> = {
-  id: TreeNodeId;
-  pid?: TreeNodeId | null;
-  name?: string;
-  check?: "0" | "1" | "2"; // "0"：未选中，"1"：半选中，"2"：选中
-  children?: Array<TreeNode<TExtra>>;
-  isMatched?: boolean;
-} & TExtra;
+运行边界与注意事项：
 
-type TreeNodeSelection<TExtra extends object = Record<never, never>> =
-  | TreeNodeId
-  | TreeNode<TExtra>;
-```
+- 传入 `null` 元素会抛出错误。
+- 实际截图需要 DOM、Canvas 以及 `html2canvas-pro`；服务端可以导入模块，但不能在纯 Node.js 环境中完成 DOM 截图。
+- `download` 默认为 `true`。不需要下载时应显式传入 `{ download: false }`，避免执行依赖 `document` 的下载逻辑。
+- 跨域图片需要资源端正确配置 CORS，或通过 `proxy` 指定你自己的代理服务；本库不内置代理。
+- `canvasConfig` 支持常用选项及其他 `html2canvas-pro` 同名配置。
 
-> `TExtra` 用于保留业务扩展字段。例如节点带 `label` 字段时，`TreeNode<{ label: string }>` 可以在不放宽类型的情况下通过类型检查。
+## 类型定义
 
-### `CheckStatus` 枚举
-```typescript
+```ts
+export type TreeNodeId = string | number;
+
 export const CheckStatus = {
   Unchecked: "0",
   HalfChecked: "1",
@@ -511,24 +353,66 @@ export const CheckStatus = {
 } as const;
 
 export type CheckStatusType = "0" | "1" | "2";
+
+export type TreeNode<TExtra extends object = Record<never, never>> = {
+  id: TreeNodeId;
+  pid?: TreeNodeId | null;
+  name?: string;
+  check?: CheckStatusType;
+  children?: Array<TreeNode<TExtra>>;
+  isMatched?: boolean;
+} & TExtra;
+
+export type TreeNodeSelection<TExtra extends object = Record<never, never>> =
+  | TreeNodeId
+  | TreeNode<TExtra>;
 ```
 
----
+其他公开类型包括：
 
-## 🛠️ 开发与发布校验
+- `ExtractValue<T>`
+- `SelfCorrectingClock`
+- `SelfCorrectingCountdown`
+- `CaptureCanvasOptions`
+- `OutputOptions`
+- `CaptureResult`
+
+## 本地开发
+
+本仓库使用 Node.js 20、pnpm 10 和 TypeScript，采用 monorepo 结构：
+
+```text
+packages/core  # 实际发布的 ui-utils-kit
+playground     # Vue 3 + Vite 手工演示项目，不进入发布包
+test           # Vitest 单元测试
+```
+
+常用命令：
 
 ```bash
-# lint、类型、测试、构建、文档同步状态和发布包导出检查
-pnpm check
-
-# 修改根 README 后同步 npm 包内文档
-pnpm docs:sync
+pnpm install
+pnpm play          # 启动 Playground
+pnpm test          # 监听模式测试
+pnpm test:coverage # 生成覆盖率
+pnpm check         # 完整质量与发布包检查
 ```
 
-CI 会在 Linux 上执行完整校验，并在 Windows、macOS 上额外执行构建与测试。发布仅由 `v*` 标签触发；标签必须严格等于 `v<packages/core version>`，例如包版本为 `1.4.0` 时应使用 `v1.4.0`。
+修改根 README 后，需要同步 npm 包内文档：
 
----
+```bash
+pnpm docs:sync
+pnpm docs:check
+```
 
-## 📜 许可证
+其他维护命令：
 
-- MIT [LICENSE](https://github.com/OFreshman/ui-utils-kit/blob/main/LICENSE)
+```bash
+pnpm package:check # 校验打包产物、导出和依赖边界
+pnpm release:check # 在发布前额外校验版本与 Git tag
+```
+
+CI 会在 `main`、`develop` 的 push 和 pull request 上执行完整校验，并在 Windows、macOS 上额外构建和测试。推送 `v*` tag 后，Release 工作流会再次校验、生成变更日志并发布 `packages/core`。
+
+## 许可证
+
+[MIT](https://github.com/OFreshman/ui-utils-kit/blob/main/LICENSE)
