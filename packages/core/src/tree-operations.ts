@@ -1,4 +1,4 @@
-import type { CheckStatusType, TreeNode } from "./types/tree-operations-type";
+import type { TreeNode, TreeNodeId } from "./types/tree-operations-type";
 import { CheckStatus } from "./types/tree-operations-type";
 
 /**
@@ -7,414 +7,524 @@ import { CheckStatus } from "./types/tree-operations-type";
  * ========================
  */
 
-/**
- * 构建树形结构
- * @param {Array} nodes - 树节点数组，每个节点包含 `id` 和 `pid` 等属性
- * @returns {Array} - 树形结构数组
- */
-export function buildTree(nodes: TreeNode[]): TreeNode[] {
-  const tree: TreeNode[] = [];
-  const idToNodeMap = new Map<string | number, TreeNode>();
-  const idToChildMap = new Map<string | number, (string | number)[]>();
+const ROOT_PID = null;
 
-  // 先根据 id 创建一个映射
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i];
-    if (!node) { // 如果 node 为 undefined，则跳过
-      continue;
-    }
-    // 存在重复节点保证添加的是首个
-    if (!idToNodeMap.has(node.id)) {
-      idToNodeMap.set(node.id, node);
-    }
-    idToChildMap.set(node.id, []);
-    node.children = []; // 初始化 children 数组
-  }
+type NodeExtra = object;
 
-  // 根据 pid 关系将节点组合成树结构
-  for (let i = 0; i < nodes.length; i++) {
-    const node = nodes[i];
-    if (!node) { // 如果 node 为 undefined，则跳过
-      continue;
-    }
-    if (node.pid === null) {
-      tree.push(node); // 根节点
-    } else {
-      const parent = idToNodeMap.get(node.pid);
-      const childrenIds = parent ? idToChildMap.get(parent.id) : [];
-      if (parent && !childrenIds?.includes(Number(node.id))) {
-        idToChildMap.get(parent.id)?.push(node.id);
-        parent.children?.push(node); // 将当前节点加入父节点的 children 数组
-      }
-    }
-  }
-
-  return tree;
+function normalizePid(pid: TreeNodeId | null | undefined): TreeNodeId | null {
+  return pid ?? ROOT_PID;
 }
 
+function getNodeByPid<TExtra extends NodeExtra>(
+  nodeById: Map<TreeNodeId, TreeNode<TExtra>>,
+  pid: TreeNodeId | null | undefined
+): TreeNode<TExtra> | undefined {
+  const normalizedPid = normalizePid(pid);
+  return normalizedPid === ROOT_PID ? undefined : nodeById.get(normalizedPid);
+}
 
 /**
- * 将树形结构转换为扁平化数组
- * @param {TreeNode[]} data - 树形数据，包含 `id`, `name` 和可选的 `children` 属性
- * @returns {Array} - 扁平化的数组，包含节点的 `id`, `name`, 和 `pid`
+ * 构建树形结构。
+ * 根据扁平节点数组构建树，重复 ID 保留首个节点，孤儿节点和成环节点不会进入结果。
+ * 该函数沿用现有 API，会重置输入节点的 `children`。
+ *
+ * @param nodes - 树节点数组，每个节点包含 `id` 和 `pid` 等属性
+ * @returns 树形结构数组
  */
-export function treeToArr(data: TreeNode[]): TreeNode[] {
-  const result: TreeNode[] = [];
+export function buildTree<TExtra extends NodeExtra>(nodes: Array<TreeNode<TExtra>>): Array<TreeNode<TExtra>> {
+  const roots: Array<TreeNode<TExtra>> = [];
+  const nodeById = new Map<TreeNodeId, TreeNode<TExtra>>();
+  const uniqueNodes: Array<TreeNode<TExtra>> = [];
 
-  /**
-   * 深度优先递归遍历树
-   * @param {TreeNode[]} tree - 当前树的节点数组
-   * @param {number | null} pid - 当前节点的父节点 ID
-   */
-  function deep(tree: TreeNode[], pid: string | number | null = null): void {
-    for (const item of tree) {
-      const { id, name, children = [] } = item;
+  // 先根据 id 创建映射，同时初始化 children 数组。
+  for (const node of nodes) {
+    // 存在重复节点时，保证添加的是首个节点。
+    if (nodeById.has(node.id)) {
+      continue;
+    }
 
-      // 如果当前节点有子节点，递归遍历子节点
-      if (children.length > 0) {
-        deep(children, id); // 传递当前节点的 id 作为子节点的 pid
+    node.children = [];
+    nodeById.set(node.id, node);
+    uniqueNodes.push(node);
+  }
+
+  // 沿父节点链向上检查，避免将自身或已成环的节点挂入结果树。
+  function createsCycle(node: TreeNode<TExtra>, parent: TreeNode<TExtra>): boolean {
+    const visited = new Set<TreeNodeId>();
+    let current: TreeNode<TExtra> | undefined = parent;
+
+    while (current && !visited.has(current.id)) {
+      if (current.id === node.id) {
+        return true;
       }
+      visited.add(current.id);
+      current = getNodeByPid(nodeById, current.pid);
+    }
 
-      // 将当前节点扁平化并加入结果数组
-      result.push({
-        id,
-        name,
-        pid,
-        check: CheckStatus.Unchecked
-      });
+    return current !== undefined;
+  }
+
+  // 根据 pid 关系将节点组合成树结构。
+  for (const node of uniqueNodes) {
+    const pid = normalizePid(node.pid);
+    if (pid === ROOT_PID) {
+      // pid 为空表示根节点。
+      roots.push(node);
+      continue;
+    }
+
+    const parent = nodeById.get(pid);
+    if (parent && !createsCycle(node, parent)) {
+      // 将当前节点加入父节点的 children 数组。
+      parent.children!.push(node);
     }
   }
 
-  // 从根节点开始遍历
-  deep(data);
+  return roots;
+}
 
-  // 返回最终的扁平化数组
+/**
+ * 将树形结构转换为扁平化数组。
+ * 以前序顺序遍历节点，并保留节点上的业务扩展字段。
+ *
+ * @param data - 树形数据，包含 `id`、`name` 和可选的 `children` 属性
+ * @returns 扁平化数组，每个节点包含重新计算的 `pid`
+ */
+export function treeToArr<TExtra extends NodeExtra>(data: Array<TreeNode<TExtra>>): Array<TreeNode<TExtra>> {
+  const result: Array<TreeNode<TExtra>> = [];
+  const visited = new Set<TreeNode<TExtra>>();
+  // 使用栈执行深度优先遍历；根节点的 pid 统一设置为 null。
+  const stack = data
+    .map((node) => ({ node, pid: ROOT_PID as TreeNodeId | null }))
+    .reverse();
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || visited.has(current.node)) {
+      continue;
+    }
+
+    visited.add(current.node);
+    const { children = [], ...nodeWithoutChildren } = current.node;
+    // 将当前节点扁平化并加入结果数组，children 不进入扁平节点。
+    result.push({
+      ...nodeWithoutChildren,
+      pid: current.pid,
+      check: current.node.check ?? CheckStatus.Unchecked
+    } as TreeNode<TExtra>);
+
+    // 逆序压栈，使输出仍保持原树中父节点和兄弟节点的顺序。
+    for (let index = children.length - 1; index >= 0; index--) {
+      const child = children[index];
+      if (child) {
+        stack.push({ node: child, pid: current.node.id });
+      }
+    }
+  }
+
+  // 返回最终的扁平化数组。
   return result;
 }
 
-
 /**
  * 更新树结构的节点选中状态。
- * 该函数处理具有多个根节点的树结构，当选中或取消选中某些节点时，更新整个树的状态。
- * 父节点的状态会根据其子节点的状态自动变为选中、半选或未选中。
+ * 该函数处理具有多个根节点的嵌套树；选中节点的后代会被选中，父节点会根据
+ * 子节点状态自动更新为选中、半选或未选中。该函数会原地修改 `tree`。
  *
- * @param {TreeNode[]} tree - 树结构的数组，每个节点包含 id, name, pid, children, check 属性。
- * @param {TreeNode[]} selectedNodes - 选中的节点数组，每个节点同样包含 id, name, pid, children, check 属性。
- * @returns {TreeNode[]} 返回更新后的树结构数组。
+ * @param tree - 嵌套树结构数组
+ * @param selectedNodes - 当前选中的节点数组
+ * @returns 更新后的树结构数组
  */
-export function updateTreeCheckStatus(tree: TreeNode[], selectedNodes: TreeNode[]): TreeNode[] {
-  const nodeMap = new Map<string | number, TreeNode>();
+export function updateTreeCheckStatus<TExtra extends NodeExtra>(
+  tree: Array<TreeNode<TExtra>>,
+  selectedNodes: Array<TreeNode<TExtra>>
+): Array<TreeNode<TExtra>> {
+  const nodeById = new Map<TreeNodeId, TreeNode<TExtra>>();
+  const parentByNode = new Map<TreeNode<TExtra>, TreeNode<TExtra>>();
+  const allNodes: Array<TreeNode<TExtra>> = [];
+  const stack = tree.map((node) => ({ node, parent: undefined as TreeNode<TExtra> | undefined }));
+  const visited = new Set<TreeNode<TExtra>>();
 
-  // 创建节点映射，便于快速查找节点
-  function createNodeMap(nodes: TreeNode[], map: Map<string | number, TreeNode>): void {
-    nodes.forEach((node) => {
-      map.set(node.id, node);
-      if (node.children && node.children.length > 0) {
-        createNodeMap(node.children, map);
+  // 创建节点映射和子节点到父节点的映射，便于快速查找。
+  while (stack.length > 0) {
+    const current = stack.pop();
+    if (!current || visited.has(current.node)) {
+      continue;
+    }
+
+    visited.add(current.node);
+    allNodes.push(current.node);
+    if (!nodeById.has(current.node.id)) {
+      nodeById.set(current.node.id, current.node);
+    }
+    if (current.parent) {
+      parentByNode.set(current.node, current.parent);
+    }
+
+    for (const child of current.node.children ?? []) {
+      stack.push({ node: child, parent: current.node });
+    }
+  }
+
+  // 先清空历史状态，确保取消选中也能被正确反映。
+  for (const node of allNodes) {
+    node.check = CheckStatus.Unchecked;
+  }
+
+  // 更新节点及其所有子节点的选中状态。
+  function setDescendantsChecked(start: TreeNode<TExtra>): void {
+    const descendants = [start];
+    const checked = new Set<TreeNode<TExtra>>();
+
+    while (descendants.length > 0) {
+      const node = descendants.pop();
+      if (!node || checked.has(node)) {
+        continue;
       }
-    });
-  }
-
-  // 更新节点及其子节点的选中状态
-  function updateChildrenCheck(node: TreeNode, checkStatus: CheckStatusType): void {
-    node.check = checkStatus;
-    if (node.children && node.children.length > 0) {
-      node.children.forEach((child) => updateChildrenCheck(child, checkStatus));
+      checked.add(node);
+      node.check = CheckStatus.Checked;
+      descendants.push(...(node.children ?? []));
     }
   }
 
-  // 更新节点及其父节点的选中状态
-  function updateParentCheck(node: TreeNode): void {
-    const parent = nodeMap.get(node.pid ?? -1); // 使用 `pid ?? -1` 来处理 `null` 的情况
-    if (parent) {
-      const allChecked = parent.children?.every((child) => child.check === CheckStatus.Checked) ?? false;
-      const allUnchecked = parent.children?.every((child) => child.check === CheckStatus.Unchecked) ?? false;
-
-      if (allChecked) {
-        parent.check = CheckStatus.Checked;
-      } else if (allUnchecked) {
-        parent.check = CheckStatus.Unchecked;
-      } else {
-        parent.check = CheckStatus.HalfChecked;
-      }
-      updateParentCheck(parent); // 递归更新父节点状态
+  // 首先设置选中节点及其后代的状态。
+  for (const selectedNode of selectedNodes) {
+    const target = nodeById.get(selectedNode.id);
+    if (target) {
+      setDescendantsChecked(target);
     }
   }
 
-  // 初始化节点映射
-  createNodeMap(tree, nodeMap);
+  // 根据直接子节点的状态，逐级更新父节点的选中状态。
+  function updateAncestors(start: TreeNode<TExtra>): void {
+    const updated = new Set<TreeNode<TExtra>>();
+    let parent = parentByNode.get(start);
 
-  // 首先设置选中节点的状态
-  selectedNodes.forEach((node) => {
-    const targetNode = nodeMap.get(node.id);
-    if (targetNode) {
-      updateChildrenCheck(targetNode, CheckStatus.Checked); // 选中节点及其所有子节点
+    while (parent && !updated.has(parent)) {
+      updated.add(parent);
+      const children = parent.children ?? [];
+      const allChecked = children.length > 0 && children.every((child) => child.check === CheckStatus.Checked);
+      const allUnchecked = children.every((child) => child.check === CheckStatus.Unchecked);
+      parent.check = allChecked
+        ? CheckStatus.Checked
+        : (allUnchecked ? CheckStatus.Unchecked : CheckStatus.HalfChecked);
+      parent = parentByNode.get(parent);
     }
-  });
+  }
 
-  // 更新选中节点及其父节点的状态
-  selectedNodes.forEach((node) => {
-    const targetNode = nodeMap.get(node.id);
-    if (targetNode) {
-      updateParentCheck(targetNode); // 更新父节点状态
+  // 更新选中节点及其父节点的状态。
+  for (const selectedNode of selectedNodes) {
+    const target = nodeById.get(selectedNode.id);
+    if (target) {
+      updateAncestors(target);
     }
-  });
+  }
 
   return tree;
 }
 
 /**
  * 更新扁平数组格式的树结构的节点选中状态。
- * 该函数处理扁平数组形式的树结构，当选中或取消选中某些节点时，更新整个树的状态。
- * 父节点的状态会根据其子节点的状态自动变为选中、半选或未选中。
+ * 选中节点的后代会被选中，父节点会根据子节点状态自动更新为选中、半选或未选中。
+ * 该函数会原地修改 `tree`。
  *
- * @param {TreeNode[]} tree - 扁平数组格式的树结构，每个节点包含 id, name, pid, check 属性，children 属性可以为空。
- * @param {TreeNode[]} selectedNodes - 选中的节点数组，每个节点同样包含 id, name, pid, check 属性。
- * @returns {TreeNode[]} 返回更新后的扁平数组格式的树结构。
+ * @param tree - 扁平数组格式的树结构
+ * @param selectedNodes - 当前选中的节点数组
+ * @returns 更新后的扁平数组格式树结构
  */
-export function updateTreeCheckStatusFlat(tree: TreeNode[], selectedNodes: TreeNode[]): TreeNode[] {
-  const idToNodeMap = new Map<string | number, TreeNode>();
-  const pidToChildrenMap = new Map<string | number | null, TreeNode[]>();
+export function updateTreeCheckStatusFlat<TExtra extends NodeExtra>(
+  tree: Array<TreeNode<TExtra>>,
+  selectedNodes: Array<TreeNode<TExtra>>
+): Array<TreeNode<TExtra>> {
+  const nodeById = new Map<TreeNodeId, TreeNode<TExtra>>();
+  const childrenByPid = new Map<TreeNodeId | null, Array<TreeNode<TExtra>>>();
 
-  // 创建节点映射和父节点到子节点的映射
-  tree.forEach((node) => {
-    idToNodeMap.set(node.id, node);
-    if (!pidToChildrenMap.has(node.pid ?? -1)) {
-      pidToChildrenMap.set(node.pid ?? -1, []);
+  // 创建节点映射和父节点到子节点的映射，并清空历史选中状态。
+  for (const node of tree) {
+    if (!nodeById.has(node.id)) {
+      nodeById.set(node.id, node);
     }
-    pidToChildrenMap.get(node.pid ?? -1)!.push(node);
-  });
+    const pid = normalizePid(node.pid);
+    const children = childrenByPid.get(pid) ?? [];
+    children.push(node);
+    childrenByPid.set(pid, children);
+    node.check = CheckStatus.Unchecked;
+  }
 
-  // 设置节点选中状态
-  function setCheckStatus(node: TreeNode, status: CheckStatusType): void {
-    node.check = status;
-    if (pidToChildrenMap.has(node.id)) {
-      pidToChildrenMap.get(node.id)!.forEach((child) => setCheckStatus(child, status));
+  // 设置节点及其全部后代的选中状态。
+  function setDescendantsChecked(start: TreeNode<TExtra>): void {
+    const stack = [start];
+    const visited = new Set<TreeNodeId>();
+
+    while (stack.length > 0) {
+      const node = stack.pop();
+      if (!node || visited.has(node.id)) {
+        continue;
+      }
+      visited.add(node.id);
+      node.check = CheckStatus.Checked;
+      stack.push(...(childrenByPid.get(node.id) ?? []));
     }
   }
 
-  // 更新父节点的选中状态
-  function updateParentCheck(node: TreeNode): void {
-    const parent = idToNodeMap.get(node.pid ?? -1);
-    if (parent) {
-      const children = pidToChildrenMap.get(parent.id) ?? [];
-      const allChecked = children.every((child) => child.check === CheckStatus.Checked);
+  // 首先设置选中节点及其后代的状态。
+  for (const selectedNode of selectedNodes) {
+    const target = nodeById.get(selectedNode.id);
+    if (target) {
+      setDescendantsChecked(target);
+    }
+  }
+
+  // 根据直接子节点的状态，逐级更新父节点的选中状态。
+  function updateAncestors(start: TreeNode<TExtra>): void {
+    const visited = new Set<TreeNodeId>();
+    let parent = getNodeByPid(nodeById, start.pid);
+
+    while (parent && !visited.has(parent.id)) {
+      visited.add(parent.id);
+      const children = childrenByPid.get(parent.id) ?? [];
+      const allChecked = children.length > 0 && children.every((child) => child.check === CheckStatus.Checked);
       const allUnchecked = children.every((child) => child.check === CheckStatus.Unchecked);
-      parent.check = allChecked ? CheckStatus.Checked : (allUnchecked ? CheckStatus.Unchecked : CheckStatus.HalfChecked);
-      updateParentCheck(parent);
+      parent.check = allChecked
+        ? CheckStatus.Checked
+        : (allUnchecked ? CheckStatus.Unchecked : CheckStatus.HalfChecked);
+      parent = getNodeByPid(nodeById, parent.pid);
     }
   }
 
-  // 首先设置选中节点的状态
-  selectedNodes.forEach((node) => {
-    const targetNode = idToNodeMap.get(node.id);
-    if (targetNode) {
-      setCheckStatus(targetNode, CheckStatus.Checked); // 选中节点及其所有子节点
+  // 更新选中节点及其父节点的状态。
+  for (const selectedNode of selectedNodes) {
+    const target = nodeById.get(selectedNode.id);
+    if (target) {
+      updateAncestors(target);
     }
-  });
-
-  // 更新选中节点及其父节点的状态
-  selectedNodes.forEach((node) => {
-    const targetNode = idToNodeMap.get(node.id);
-    if (targetNode) {
-      updateParentCheck(targetNode); // 更新父节点状态
-    }
-  });
+  }
 
   return tree;
 }
 
-
 /**
- * 在树形结构中根据关键词查找相关节点，并返回包含匹配节点、父节点和子节点的结果。
+ * 在树形结构中根据关键词查找相关节点，并返回匹配节点、父节点和子节点。
+ * 结果保持原数组顺序。
  *
- * @param {Array} treeArr - 树形数据数组，每个元素应为一个节点对象，节点对象至少包含 `id`, `pid`, `name` 属性。
- * @param {string} keywords - 用于查找的关键词，匹配节点的 `name` 属性。
- * @param {boolean} mark - 是否在结果中标记 `isMatched` 属性。
- * @returns {Array} - 返回匹配的节点数组，包含匹配的节点及其父节点和子节点，顺序为父节点在前、子节点在后。
+ * @param treeArr - 树形数据数组，节点至少包含 `id`、`pid` 和 `name` 属性
+ * @param keywords - 用于匹配节点 `name` 属性的关键词
+ * @param mark - 是否为直接匹配的节点标记 `isMatched` 属性
+ * @returns 匹配节点及其全部祖先和后代
  */
-export function searchTreeWithRelations(treeArr: TreeNode[] = [], keywords: string = "", mark: boolean = true): TreeNode[] { // 返回匹配的节点数组
-  const resultSet = new Set<string | number>(); // 使用 Set 来避免重复节点
-  const idToNodeMap = new Map<string | number | null, TreeNode>(); // id 到节点的映射
-  const pidToChildrenMap = new Map<string | number | null, TreeNode[]>(); // pid 到子节点的映射
-  const result: TreeNode[] = []; // 存放最终结果的数组
+export function searchTreeWithRelations<TExtra extends NodeExtra>(
+  treeArr: Array<TreeNode<TExtra>> = [],
+  keywords: string = "",
+  mark: boolean = true
+): Array<TreeNode<TExtra>> {
+  const nodeById = new Map<TreeNodeId, TreeNode<TExtra>>();
+  const childrenByPid = new Map<TreeNodeId | null, Array<TreeNode<TExtra>>>();
+  const matchedIds = new Set<TreeNodeId>();
+  const includedIds = new Set<TreeNodeId>();
 
-  // 1. 构建 id 到节点映射和 pid 到子节点的映射，并预处理匹配的节点
-  treeArr.forEach((node) => {
-    const isMatched = node.name.includes(keywords);
-    idToNodeMap.set(node.id, node); // 通过 id 映射到具体节点
-    if (!pidToChildrenMap.has(node.pid)) {
-      pidToChildrenMap.set(node.pid, []); // 如果父节点不存在，初始化一个空数组
+  // 1. 构建 id 到节点、pid 到子节点的映射，并记录直接匹配的节点。
+  for (const node of treeArr) {
+    if (!nodeById.has(node.id)) {
+      nodeById.set(node.id, node);
     }
-    pidToChildrenMap.get(node.pid)!.push(node); // 将当前节点添加到父节点的子节点数组中
-    if (isMatched) {
-      resultSet.add(node.id); // 使用 Set 来避免重复
-      result.push(mark
-        ? {
-            ...node,
-            isMatched
-          }
-        : node);
-    }
-  });
+    const pid = normalizePid(node.pid);
+    const children = childrenByPid.get(pid) ?? [];
+    children.push(node);
+    childrenByPid.set(pid, children);
 
-  // 2. 查找当前节点的子节点，并递归地处理子节点
-  function findChildren(node: TreeNode): void {
-    const children = pidToChildrenMap.get(node.id);
-    if (children) {
-      children.forEach((child) => {
-        // 如果子节点没有被加入结果集，则添加
-        if (!resultSet.has(child.id)) {
-          resultSet.add(child.id);
-          result.push(child); // 将子节点加入到结果数组中
-        }
-        findChildren(child); // 递归查找子节点
-      });
+    if ((node.name ?? "").includes(keywords)) {
+      matchedIds.add(node.id);
+      includedIds.add(node.id);
     }
   }
 
-  // 3. 查找所有父节点
-  function findParent(node: TreeNode): void {
-    let parent = idToNodeMap.get(node.pid);
-    while (parent) {
-      // 如果父节点没有被加入结果集，则添加
-      if (!resultSet.has(parent.id)) {
-        resultSet.add(parent.id);
-        result.unshift(parent); // 将父节点插入到结果数组的最前面
+  // 2. 从直接匹配节点开始，查找并收集全部后代节点。
+  const descendantQueue = [...matchedIds];
+  for (let index = 0; index < descendantQueue.length; index++) {
+    const id = descendantQueue[index];
+    if (id === undefined) {
+      continue;
+    }
+    for (const child of childrenByPid.get(id) ?? []) {
+      if (!includedIds.has(child.id)) {
+        includedIds.add(child.id);
+        descendantQueue.push(child.id);
       }
-      parent = idToNodeMap.get(parent.pid); // 查找父节点的父节点
     }
   }
 
-  treeArr.forEach((node) => {
-    const isMatched = node.name.includes(keywords);
-    if (isMatched) {
-      findChildren(node);
-      findParent(node);
-    }
-  });
+  // 3. 沿 pid 链向上查找全部父节点，并通过 visited 防止循环引用。
+  for (const matchedId of matchedIds) {
+    const visited = new Set<TreeNodeId>();
+    let parent = getNodeByPid(nodeById, nodeById.get(matchedId)?.pid);
 
-  return result; // 返回查找结果
-}
-
-/**
- * 从树形结构中移除指定的节点
- * @param {Array} treeArr - 当前的扁平树形结构数组，每个节点对象包含 `id` 和 `pid` 属性
- * @param {Array} selectedNodes - 要移除的节点数组，每个节点包含 `id` 和 `pid` 属性
- * @returns {Array} - 过滤后的扁平树形结构数组，其中移除了指定的节点及其子节点（如果父节点被移除）
- */
-export function removeNodesFromTree(treeArr: TreeNode[] = [], selectedNodes: TreeNode[] = []): TreeNode[] { // 返回过滤后的树形结构数组
-  // 创建一个 Set 来存储需要移除的节点 ID，便于快速查找
-  const idsToRemove = new Set(selectedNodes.map((node) => node.id));
-
-  // 过滤出不需要删除的节点
-  const remainingNodes = treeArr.filter((node) => {
-    // 如果节点的 ID 或其父节点 ID 在删除列表中，则该节点需要被移除
-    if (idsToRemove.has(node.id) || (node.pid !== null && idsToRemove.has(node.pid))) {
-      return false; // 过滤掉这些节点
-    }
-    return true; // 保留其他节点
-  });
-
-  // 返回过滤后的树形结构，移除了指定的节点
-  return remainingNodes;
-}
-
-/**
- * 合并节点数组到已有的树形结构中
- * @param {Array} treeArr - 现有的树形结构数组，每个元素包含一个 `id` 和 `pid` 属性
- * @param {Array} nodes - 要合并的节点数组，每个节点包含一个 `id` 和 `pid` 属性
- * @returns {Array} - 合并后的树形结构数组
- */
-export function mergeTrees(treeArr: TreeNode[] = [], nodes: TreeNode[] = []): TreeNode[] {
-  // 创建一个 Set 用来存储现有树形结构中所有节点的 id，便于快速查找
-  const nodesIdMap = new Set(treeArr.map((node) => node.id));
-
-  // 遍历要合并的节点数组
-  nodes.forEach((node) => {
-    // 判断该节点的 id 是否已经存在于现有的树形结构中
-    // 如果不存在，并且该节点的 pid 要么是现有树中某个节点的 id，要么 pid 为 null（表示这是根节点）
-    if (
-      !nodesIdMap.has(node.id) // 当前节点 id 不存在
-      && (node.pid === null || nodesIdMap.has(node.pid)) // 要么父节点 id 存在，要么是根节点
-    ) {
-      // 将符合条件的节点添加到树形结构中
-      treeArr.push(node);
-    }
-  });
-
-  return treeArr; // 返回合并后的树形结构
-}
-
-/**
- * 从树形结构中选择与给定选中节点相关的所有父节点和子节点
- * @param {Array} treeData - 树形结构数组，每个节点对象包含 `id` 和 `pid` 属性
- * @param {Array} selectedNodes - 选中的节点数组，每个节点对象包含 `id` 和 `pid` 属性
- * @returns {Array} - 包含选中节点、其父节点和子节点的数组
- */
-export function selectRelatedNodes(treeData: TreeNode[], selectedNodes: TreeNode[] = []): TreeNode[] {
-  // 使用 Set 存储已选择节点的 id，避免重复
-  const selectedNodeIds = new Set<string | number>();
-  // id 到节点的映射，便于快速查找节点
-  const nodeByIdMap = new Map<string | number | null, TreeNode>();
-  // pid 到子节点的映射，便于快速查找某个父节点的所有子节点
-  const childrenByPidMap = new Map<string | number | null, TreeNode[]>();
-  // 存放最终结果的数组
-  const selectedNodesAndRelated: TreeNode[] = [];
-  // 用于快速查找选中的节点
-  const selectedNodesMap = new Map<string | number, TreeNode>(selectedNodes.map((node) => [node.id, node]));
-
-  // 1. 构建 id 到节点映射和 pid 到子节点的映射，并预处理选中的节点
-  treeData.forEach((node) => {
-    const isSelected = selectedNodesMap.get(node.id); // 判断当前节点是否为选中节点
-    nodeByIdMap.set(node.id, node); // 通过 id 映射到具体节点
-    if (!childrenByPidMap.has(node.pid)) {
-      childrenByPidMap.set(node.pid, []); // 如果父节点不存在，初始化空数组
-    }
-    childrenByPidMap.get(node.pid)!.push(node); // 将当前节点添加到父节点的子节点数组中
-
-    if (isSelected) {
-      selectedNodeIds.add(node.id); // 将选中节点的 id 添加到 selectedNodeIds 中
-      selectedNodesAndRelated.push(node); // 将选中节点加入到结果数组中
-    }
-  });
-
-  // 2. 查找当前节点的所有子节点，并递归地处理每个子节点
-  function collectChildren(node: TreeNode): void {
-    const children = childrenByPidMap.get(node.id);
-    if (children) {
-      children.forEach((child) => {
-        // 如果子节点没有被加入结果集，则添加
-        if (!selectedNodeIds.has(child.id)) {
-          selectedNodeIds.add(child.id);
-          selectedNodesAndRelated.push(child); // 将子节点加入到结果数组中
-        }
-        collectChildren(child); // 递归查找该子节点的子节点
-      });
+    while (parent && !visited.has(parent.id)) {
+      visited.add(parent.id);
+      includedIds.add(parent.id);
+      parent = getNodeByPid(nodeById, parent.pid);
     }
   }
 
-  // 3. 查找所有父节点
-  function collectParents(node: TreeNode): void {
-    let parent = nodeByIdMap.get(node.pid);
-    while (parent) {
-      // 如果父节点没有被加入结果集，则添加
-      if (!selectedNodeIds.has(parent.id)) {
-        selectedNodeIds.add(parent.id);
-        selectedNodesAndRelated.unshift(parent); // 将父节点插入到结果数组的最前面
+  // 按输入顺序输出；仅直接匹配的节点会被标记。
+  return treeArr
+    .filter((node) => includedIds.has(node.id))
+    .map((node) => mark && matchedIds.has(node.id)
+      ? { ...node, isMatched: true } as TreeNode<TExtra>
+      : node);
+}
+
+/**
+ * 从树形结构中移除指定的节点及其所有后代，结果保持原数组顺序。
+ *
+ * @param treeArr - 当前的扁平树形结构数组
+ * @param selectedNodes - 要移除的节点数组
+ * @returns 过滤后的扁平树形结构数组
+ */
+export function removeNodesFromTree<TExtra extends NodeExtra>(
+  treeArr: Array<TreeNode<TExtra>> = [],
+  selectedNodes: Array<TreeNode<TExtra>> = []
+): Array<TreeNode<TExtra>> {
+  const childrenByPid = new Map<TreeNodeId | null, Array<TreeNode<TExtra>>>();
+  // 使用 Set 存储需要移除的节点 ID，便于快速查找并避免重复。
+  const idsToRemove = new Set<TreeNodeId>(selectedNodes.map((node) => node.id));
+
+  // 构建父节点到子节点的映射，以便递归扩展删除范围。
+  for (const node of treeArr) {
+    const pid = normalizePid(node.pid);
+    const children = childrenByPid.get(pid) ?? [];
+    children.push(node);
+    childrenByPid.set(pid, children);
+  }
+
+  // 从指定节点开始，迭代收集所有层级的后代节点。
+  const queue = [...idsToRemove];
+  for (let index = 0; index < queue.length; index++) {
+    const id = queue[index];
+    if (id === undefined) {
+      continue;
+    }
+    for (const child of childrenByPid.get(id) ?? []) {
+      if (!idsToRemove.has(child.id)) {
+        idsToRemove.add(child.id);
+        queue.push(child.id);
       }
-      parent = nodeByIdMap.get(parent.pid); // 查找父节点的父节点
     }
   }
 
-  // 4. 遍历树形数据，查找与选中节点相关的父子节点
-  treeData.forEach((node) => {
-    const isSelected = selectedNodesMap.get(node.id);
-    if (isSelected) {
-      collectChildren(node); // 查找当前节点的子节点
-      collectParents(node); // 查找当前节点的父节点
-    }
-  });
-
-  return selectedNodesAndRelated; // 返回包含选中节点及其相关父子节点的数组
+  // 返回过滤后的树形结构，移除指定节点及其所有后代。
+  return treeArr.filter((node) => !idsToRemove.has(node.id));
 }
+
+/**
+ * 合并节点数组到已有的树形结构中。
+ * 支持待合并节点乱序；重复、孤儿和成环节点会被忽略。
+ * 该函数沿用现有 API，会原地追加到 `treeArr`。
+ *
+ * @param treeArr - 现有的扁平树形结构数组
+ * @param nodes - 要合并的节点数组
+ * @returns 合并后的树形结构数组
+ */
+export function mergeTrees<TExtra extends NodeExtra>(
+  treeArr: Array<TreeNode<TExtra>> = [],
+  nodes: Array<TreeNode<TExtra>> = []
+): Array<TreeNode<TExtra>> {
+  // 存储现有树中所有节点的 id，便于判断节点是否已存在以及父节点是否可用。
+  const existingIds = new Set<TreeNodeId>(treeArr.map((node) => node.id));
+  // 重复节点只保留首个，已存在于树中的节点不再进入待处理队列。
+  let pending = nodes.filter((node, index) =>
+    !existingIds.has(node.id)
+    && nodes.findIndex((candidate) => candidate.id === node.id) === index);
+
+  while (pending.length > 0) {
+    const nextPending: Array<TreeNode<TExtra>> = [];
+    let added = 0;
+
+    // 每轮添加根节点或父节点已经存在的节点，以支持输入节点乱序。
+    for (const node of pending) {
+      const pid = normalizePid(node.pid);
+      if (pid === ROOT_PID || existingIds.has(pid)) {
+        treeArr.push(node);
+        existingIds.add(node.id);
+        added++;
+      } else {
+        nextPending.push(node);
+      }
+    }
+
+    // 一轮中没有节点可添加，说明剩余节点为孤儿节点或存在环。
+    if (added === 0) {
+      break;
+    }
+    pending = nextPending;
+  }
+
+  return treeArr;
+}
+
+/**
+ * 从树形结构中选择与给定节点相关的所有父节点和子节点。
+ * 结果保持原数组顺序。
+ *
+ * @param treeData - 扁平树形结构数组
+ * @param selectedNodes - 选中的节点数组
+ * @returns 选中节点、其全部祖先和全部后代
+ */
+export function selectRelatedNodes<TExtra extends NodeExtra>(
+  treeData: Array<TreeNode<TExtra>>,
+  selectedNodes: Array<TreeNode<TExtra>> = []
+): Array<TreeNode<TExtra>> {
+  const nodeById = new Map<TreeNodeId, TreeNode<TExtra>>();
+  const childrenByPid = new Map<TreeNodeId | null, Array<TreeNode<TExtra>>>();
+  const includedIds = new Set<TreeNodeId>();
+
+  // 1. 构建 id 到节点和 pid 到子节点的映射。
+  for (const node of treeData) {
+    if (!nodeById.has(node.id)) {
+      nodeById.set(node.id, node);
+    }
+    const pid = normalizePid(node.pid);
+    const children = childrenByPid.get(pid) ?? [];
+    children.push(node);
+    childrenByPid.set(pid, children);
+  }
+
+  // 使用 Set 存储已选择节点的 id，避免重复。
+  const queue: TreeNodeId[] = [];
+  for (const selectedNode of selectedNodes) {
+    if (nodeById.has(selectedNode.id) && !includedIds.has(selectedNode.id)) {
+      includedIds.add(selectedNode.id);
+      queue.push(selectedNode.id);
+    }
+  }
+
+  // 2. 查找当前节点的所有子节点，并迭代处理每个后代节点。
+  for (let index = 0; index < queue.length; index++) {
+    const id = queue[index];
+    if (id === undefined) {
+      continue;
+    }
+    for (const child of childrenByPid.get(id) ?? []) {
+      if (!includedIds.has(child.id)) {
+        includedIds.add(child.id);
+        queue.push(child.id);
+      }
+    }
+  }
+
+  // 3. 沿 pid 链查找所有父节点，并通过 visited 防止循环引用。
+  for (const selectedNode of selectedNodes) {
+    const visited = new Set<TreeNodeId>();
+    let parent = getNodeByPid(nodeById, nodeById.get(selectedNode.id)?.pid);
+
+    while (parent && !visited.has(parent.id)) {
+      visited.add(parent.id);
+      includedIds.add(parent.id);
+      parent = getNodeByPid(nodeById, parent.pid);
+    }
+  }
+
+  // 4. 按原树顺序返回与选中节点相关的父子节点。
+  return treeData.filter((node) => includedIds.has(node.id));
+}
+export { CheckStatus };
+export type { CheckStatusType, TreeNode, TreeNodeId } from "./types/tree-operations-type";

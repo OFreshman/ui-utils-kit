@@ -1,6 +1,10 @@
-// 节点选择状态枚举
+/** 树节点标识。 */
+export type TreeNodeId = string | number;
+
+/** 从对象类型中提取值类型。 */
 export type ExtractValue<T> = T[keyof T];
 
+/** 节点选择状态枚举。 */
 export const CheckStatus = {
   Unchecked: "0",
   HalfChecked: "1",
@@ -9,11 +13,16 @@ export const CheckStatus = {
 
 export type CheckStatusType = ExtractValue<typeof CheckStatus>;
 
-// 树节点类型
-export interface TreeNode {
-  id: string | number;
-  pid: string | number | null;
-  check: CheckStatusType; // '0'：未选中, '1'：半选中, '2'：选中
-  children?: TreeNode[];
-  [key: string]: any; // 用于支持额外的属性
-}
+/**
+ * 树节点类型。
+ *
+ * `TExtra` 用于保留业务扩展字段，避免通过 `any` 放宽整个节点类型。
+ */
+export type TreeNode<TExtra extends object = Record<never, never>> = {
+  id: TreeNodeId;
+  pid?: TreeNodeId | null;
+  name?: string;
+  check?: CheckStatusType; // "0"：未选中，"1"：半选中，"2"：选中
+  children?: Array<TreeNode<TExtra>>;
+  isMatched?: boolean;
+} & TExtra;

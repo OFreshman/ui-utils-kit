@@ -1,6 +1,5 @@
-import html2canvas from "html2canvas-pro";
 import type { Options as Html2canvasOptions } from "html2canvas-pro";
-import type { CaptureResult, OutputOptions } from "./types/business-type";
+import type { CaptureCanvasOptions, CaptureResult, OutputOptions } from "./types/business-type";
 
 /**
  * =====================
@@ -19,20 +18,20 @@ import type { CaptureResult, OutputOptions } from "./types/business-type";
  */
 export async function captureElementAsImage(
   element: HTMLElement | null,
-  canvasConfig: Partial<Html2canvasOptions> = {},
+  canvasConfig: CaptureCanvasOptions = {},
   outputOptions: OutputOptions = { download: true, downloadName: "下载图片", blob: false }
 ): Promise<CaptureResult> {
   if (!element) {
     throw new Error("captureElementAsImage element required");
   }
 
-  // 默认的 html2canvas 配置，确保图片清晰且处理跨域问题
-  const defaultCanvasConfig: Partial<Html2canvasOptions> = {
+  // 默认的 html2canvas 配置，确保图片清晰；跨域图片仍需正确的 CORS 或代理配置。
+  const defaultCanvasConfig: CaptureCanvasOptions = {
     scale: 2, // 提高清晰度
     proxy: "",
     backgroundColor: "#ffffff", // 防止生成的图片背景透明
-    useCORS: false, // 允许跨域图片
-    allowTaint: false // 允许污染 canvas
+    useCORS: false,
+    allowTaint: false
   };
 
   // 合并默认输出选项和用户传入的选项
@@ -51,9 +50,12 @@ export async function captureElementAsImage(
   let dataUrl: string | null = null;
   let blobResult: Blob | null = null;
 
+  // 延迟加载可选 peer，避免纯工具函数使用者在导入入口时就必须解析它。
+  const { default: html2canvas } = await import("html2canvas-pro");
+
   // 利用 html2canvas 将 DOM 元素渲染成 canvas
   // 考虑到 html-to-image 虽然渲染快（仅web就优先考虑），但是在 ios和android 兼容性较弱，这里使用 html2canvas 进行渲染
-  canvas = await html2canvas(element, finalCanvasConfig);
+  canvas = await html2canvas(element, finalCanvasConfig as Partial<Html2canvasOptions>);
 
   // 如果需要下载，则生成 data URL 并触发下载
   if (defaultOutputOptions.download) {
@@ -81,3 +83,5 @@ export async function captureElementAsImage(
 
   return { canvas, dataUrl, blob: blobResult };
 }
+
+export type { CaptureCanvasOptions, CaptureResult, OutputOptions } from "./types/business-type";

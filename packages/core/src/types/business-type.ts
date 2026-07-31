@@ -1,5 +1,17 @@
 /**
- * 输出选项接口
+ * DOM 截图配置。常用字段提供明确类型，其余 html2canvas 选项可按原名称传入。
+ */
+export interface CaptureCanvasOptions {
+  scale?: number;
+  proxy?: string;
+  backgroundColor?: string | null;
+  useCORS?: boolean;
+  allowTaint?: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * 输出选项接口。
  */
 export interface OutputOptions {
   /** 是否自动下载生成的图片 */
@@ -11,7 +23,7 @@ export interface OutputOptions {
 }
 
 /**
- * 捕获结果接口
+ * 捕获结果接口。
  */
 export interface CaptureResult {
   /** 生成的 Canvas 元素 */

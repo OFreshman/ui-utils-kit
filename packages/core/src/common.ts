@@ -19,7 +19,6 @@ export function safeJsonParse<T>(jsonString: string, defaultValue: T): [Error | 
     const parsed = JSON.parse(jsonString) as T;
     return [null, parsed];
   } catch (error) {
-    console.error("JSON 解析错误:", error);
     return [error instanceof Error ? error : new Error(String(error)), defaultValue];
   }
 }
@@ -163,29 +162,40 @@ export class Mutex {
 }
 
 /**
+ * 校验定时器间隔。
+ */
+function assertValidInterval(interval: number): void {
+  if (!Number.isFinite(interval) || interval <= 0) {
+    throw new RangeError("interval must be a finite number greater than 0");
+  }
+}
+
+/**
  * 创建零漂移的自校正实时时钟
  * @param interval 更新间隔（毫秒），默认 1000
  */
 export function createSelfCorrectingClock(
   interval: number = 1000
 ): SelfCorrectingClock {
+  assertValidInterval(interval);
+
   let currentTime: number = Date.now();
   let expected: number = Date.now() + interval;
   let timerId: ReturnType<typeof setTimeout>;
 
   const step = (): void => {
-    const drift: number = Date.now() - expected; // 计算漂移 :contentReference[oaicite:3]{index=3}
+    const drift: number = Date.now() - expected; // 计算漂移
     currentTime = Date.now();
     expected += interval;
-    // 下次延迟 = 理想间隔 - 本次漂移，保证校正 :contentReference[oaicite:4]{index=4}
+    // 下次延迟 = 理想间隔 - 本次漂移，保证校正
     const timeout = Math.max(0, interval - drift);
     timerId = setTimeout(step, timeout);
   };
 
-  timerId = setTimeout(step, interval); // 初始启动 :contentReference[oaicite:5]{index=5}
+  timerId = setTimeout(step, interval); // 初始启动
   return {
     getCurrentTime: () => currentTime,
-    stop: () => clearTimeout(timerId) // 内部清除，无须外部管理 :contentReference[oaicite:6]{index=6}
+    stop: () => clearTimeout(timerId) // 内部清除，无须外部管理
   };
 }
 
@@ -200,9 +210,14 @@ export function createSelfCorrectingCountdown(
   targetTimestamp: number,
   interval: number = 1000
 ): SelfCorrectingCountdown {
+  assertValidInterval(interval);
+  if (!Number.isFinite(targetTimestamp)) {
+    throw new RangeError("targetTimestamp must be a finite number");
+  }
+
   let remaining: number = Math.max(targetTimestamp - Date.now(), 0);
   let expected: number = Date.now() + interval;
-  let timerId: ReturnType<typeof setTimeout>;
+  let timerId: ReturnType<typeof setTimeout> | undefined;
 
   const step = (): void => {
     const drift: number = Date.now() - expected;
@@ -212,13 +227,20 @@ export function createSelfCorrectingCountdown(
     }
     expected += interval;
     const timeout = Math.max(0, interval - drift);
-    timerId = setTimeout(step, timeout);
+    timerId = setTimeout(step, Math.min(timeout, remaining));
   };
 
-  timerId = setTimeout(step, interval);
+  if (remaining > 0) {
+    timerId = setTimeout(step, Math.min(interval, remaining));
+  }
 
   return {
     getRemainingTime: (): number => remaining,
-    stop: (): void => clearTimeout(timerId)
+    stop: (): void => {
+      if (timerId !== undefined) {
+        clearTimeout(timerId);
+      }
+    }
   };
 }
+export type { SelfCorrectingClock, SelfCorrectingCountdown } from "./types/common-type";
