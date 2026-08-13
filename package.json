@@ -28,10 +28,13 @@
     "stylelint:fix": "stylelint **/*.{css,scss,html,vue} --fix",
     "test:run": "vitest run",
     "docs:sync": "node scripts/sync-docs.mjs",
-    "docs:check": "node scripts/sync-docs.mjs --check",
+    "docs:check": "node scripts/sync-docs.mjs --check && node scripts/check-docs.mjs",
     "package:check": "node scripts/check-package.mjs",
     "release:check": "node scripts/check-package.mjs --release",
-    "check": "pnpm lint && pnpm lint:type && pnpm test:run && pnpm build && pnpm docs:check && pnpm package:check"
+    "check": "pnpm lint && pnpm lint:type && pnpm test:run && pnpm build && pnpm docs:check && pnpm docs:build && pnpm package:check",
+    "docs": "pnpm --dir docs dev",
+    "docs:build": "pnpm --dir docs build",
+    "docs:preview": "pnpm --dir docs preview"
   },
   "devDependencies": {
     "@xiaohe01/eslint-config": "catalog:",

@@ -1,0 +1,14 @@
+{
+  "name": "@ui-utils-kit/docs",
+  "type": "module",
+  "version": "1.3.14",
+  "private": true,
+  "scripts": {
+    "dev": "vitepress dev",
+    "build": "vitepress build",
+    "preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "catalog:"
+  }
+}

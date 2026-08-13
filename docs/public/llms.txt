@@ -1,0 +1,12 @@
+# ui-utils-kit documentation
+
+ui-utils-kit is a TypeScript utility library for tree data operations, common asynchronous utilities, and browser DOM capture.
+
+- Home: https://ofreshman.github.io/ui-utils-kit/
+- Getting started: https://ofreshman.github.io/ui-utils-kit/guide/getting-started
+- Behavior and boundaries: https://ofreshman.github.io/ui-utils-kit/guide/behavior
+- Tree API: https://ofreshman.github.io/ui-utils-kit/api/tree
+- Common API: https://ofreshman.github.io/ui-utils-kit/api/common
+- Business API: https://ofreshman.github.io/ui-utils-kit/api/business
+- FAQ: https://ofreshman.github.io/ui-utils-kit/guide/faq
+- Source: https://github.com/OFreshman/ui-utils-kit

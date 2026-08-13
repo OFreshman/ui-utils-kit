@@ -10,6 +10,8 @@
 [![Bundle Size](https://img.shields.io/bundlephobia/minzip/ui-utils-kit?style=flat&colorA=080f12&colorB=1fa669&label=minzip)](https://bundlephobia.com/result?p=ui-utils-kit)
 [![License](https://img.shields.io/github/license/OFreshman/ui-utils-kit.svg?style=flat&colorA=080f12&colorB=1fa669)](https://github.com/OFreshman/ui-utils-kit/blob/main/LICENSE)
 
+**📖 [完整文档](https://ofreshman.github.io/ui-utils-kit/)** · [快速上手](https://ofreshman.github.io/ui-utils-kit/guide/getting-started) · [API 参考](https://ofreshman.github.io/ui-utils-kit/api/tree) · [常见问题](https://ofreshman.github.io/ui-utils-kit/guide/faq)
+
 </div>
 
 ## 特性
@@ -370,7 +372,6 @@ export type TreeNodeSelection<TExtra extends object = Record<never, never>> =
 
 其他公开类型包括：
 
-- `ExtractValue<T>`
 - `SelfCorrectingClock`
 - `SelfCorrectingCountdown`
 - `CaptureCanvasOptions`
@@ -384,6 +385,7 @@ export type TreeNodeSelection<TExtra extends object = Record<never, never>> =
 ```text
 packages/core  # 实际发布的 ui-utils-kit
 playground     # Vue 3 + Vite 手工演示项目，不进入发布包
+docs           # VitePress 文档站，不进入 npm 发布包
 test           # Vitest 单元测试
 ```
 
@@ -392,9 +394,11 @@ test           # Vitest 单元测试
 ```bash
 pnpm install
 pnpm play          # 启动 Playground
+pnpm docs          # 启动 VitePress 文档站
+pnpm docs:build    # 构建文档站
 pnpm test          # 监听模式测试
 pnpm test:coverage # 生成覆盖率
-pnpm check         # 完整质量与发布包检查
+pnpm check         # 完整质量、文档站与发布包检查
 ```
 
 修改根 README 后，需要同步 npm 包内文档：
